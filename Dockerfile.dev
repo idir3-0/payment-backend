@@ -1,0 +1,17 @@
+FROM node:16.19.0
+
+RUN yarn global add nodemon
+
+ENV NODE_ENV=development
+
+WORKDIR /app
+
+COPY ["package.json", "yarn.lock", "./"]
+
+RUN yarn
+
+COPY . .
+
+EXPOSE 3000
+
+CMD [ "yarn", "dev" ]

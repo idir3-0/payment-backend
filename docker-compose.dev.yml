@@ -1,0 +1,29 @@
+version: '3'
+services:
+  firebase:
+    image: spine3/firebase-emulator
+    ports:
+      - 9000:9000
+      - 8080:8080
+      - 4000:4000
+      - 9099:9099
+      - 8085:8085
+      - 5001:5001
+      - 9199:9199
+    environment:
+      - ENABLE_UI=true
+      - GCP_PROJECT=payment-backend
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env.local
+    ports:
+      - 3000:3000
+    depends_on:
+      - firebase
+    volumes:
+      - .:/app
+      - ./dist:/app/dist
+      - /app/node_modules
