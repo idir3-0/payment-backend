@@ -16,7 +16,8 @@
     // Change this paths keys
     "paths": {
       "src/*": ["src/*"]
-    }
+    },
+    "typeRoots": ["src/types"]
   },
   "exclude": ["node_modules", "dist"]
 }
