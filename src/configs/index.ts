@@ -1,4 +1,4 @@
-import { Config } from 'src/types/config';
+import { Config } from './models';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -18,7 +18,7 @@ const appPort = Number(process.env.SERVER_APP_PORT) || 3000;
 
 const config: Config = {
   base: {
-    environment
+    environment,
   },
   firebase: {
     apiKey,

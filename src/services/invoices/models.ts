@@ -1,6 +1,8 @@
-import { BusinessInfo } from './account';
+import { BusinessInfo } from '../accounts/models';
 
 export type InvoiceStatusType = 'archived' | 'draft' | 'paied' | 'pending';
+
+export type InvoiceType = 'created' | 'paied';
 
 export const InvoiceStatus = {
   archived: 'archived',
@@ -28,8 +30,7 @@ export interface CreateInvoiceRequest {
 }
 
 export interface ListInvoicesRequest {
-  page?: number;
-  offset?: number;
+  type: InvoiceType;
   limit?: number;
 }
 

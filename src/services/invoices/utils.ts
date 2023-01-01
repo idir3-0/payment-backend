@@ -1,14 +1,9 @@
-import { ListInvoicesRequest } from 'src/types/invoice';
+import { ListInvoicesRequest } from './models';
 
 export const normalizePagination = (
   req: ListInvoicesRequest,
 ): ListInvoicesRequest => {
-  const limit = 20;
-  if (req.page < 0) {
-    req.page = 0;
-  }
-  req.offset = req.page * limit;
-  req.limit = limit;
+  req.limit = 20;
 
   return req;
 };

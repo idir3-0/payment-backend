@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { createUser, loginUser } from './controllers';
-import { CreateUserRequest, LoginUserRequest } from 'src/types/account';
+import { CreateUserRequest, LoginUserRequest } from './models';
 
 export const registerHandler = async (req: Request, res: Response) => {
   const createRequest = req.body as CreateUserRequest;

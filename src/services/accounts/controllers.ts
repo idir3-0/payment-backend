@@ -4,7 +4,7 @@ import {
   newUserWithEmailAndPassword,
   userSignInWithEmailAndPassword,
 } from 'src/adapters/firebase/users';
-import { CreateUserRequest, LoginUserRequest } from 'src/types/account';
+import { CreateUserRequest, LoginUserRequest } from './models';
 
 export const createUser = async (createRequest: CreateUserRequest) => {
   await newUserWithEmailAndPassword(

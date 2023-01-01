@@ -24,7 +24,7 @@ import {
   PayInvoiceRequest,
   InvoiceStatusState,
   GetPayInvoiceRequest,
-} from 'src/types/invoice';
+} from './models';
 import {
   ERROR_INVOICE_NOT_EXIST,
   ERROR_INVOICE_CAN_NOT_UPDATE,
@@ -34,15 +34,11 @@ import {
   ERROR_INVOICE_ALREADY_PAIED,
 } from './errors';
 import { normalizePagination } from './utils';
+import { getCurrentDate } from 'src/utils/date';
 
 const INVOICE_COLLECTION_NAME = 'invoices';
-const CREATED_INVOICE_COLLECTION_NAME = 'created-invoices';
-const PAIED_INVOICE_COLLECTION_NAME = 'paied-invoices';
-
-const getCurrentDate = () => {
-  const datetime = new Date();
-  return `${datetime.getFullYear()}-${datetime.getMonth() + 1}`;
-};
+const CREATED_INVOICE_COLLECTION_NAME = 'created';
+const PAIED_INVOICE_COLLECTION_NAME = 'paied';
 
 export const createInvoice = async (
   req: CreateInvoiceRequest,
@@ -99,15 +95,15 @@ export const listInvoices = async (
   userId: string,
 ) => {
   try {
-    const { limit: lim, offset: off, page } = normalizePagination(req);
+    const { limit: lim, type } = normalizePagination(req);
     const col = collection(
       firebaseDatabase,
       INVOICE_COLLECTION_NAME,
       userId,
-      CREATED_INVOICE_COLLECTION_NAME,
+      type,
     );
 
-    const q = query(col, orderBy('createdAt'), startAt(off), limit(lim));
+    const q = query(col, orderBy('createdAt'), limit(lim));
     const invoicesSnap = await getDocs(q);
     const invoices = [];
     invoicesSnap.forEach((inv) => {
@@ -117,7 +113,7 @@ export const listInvoices = async (
       };
       invoices.push(invoice);
     });
-    return { data: { invoices, page, limit: lim } };
+    return { data: { invoices, limit: lim } };
   } catch (error) {
     return { error };
   }

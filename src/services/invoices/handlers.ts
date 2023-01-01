@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, query } from 'express';
 import {
   createInvoice,
   listInvoices,
@@ -10,11 +10,12 @@ import {
 } from './controllers';
 import {
   CreateInvoiceRequest,
+  InvoiceType,
   Item,
   ListInvoicesRequest,
   PayInvoiceRequest,
   UpdateInvoiceRequest,
-} from 'src/types/invoice';
+} from './models';
 import { errorHandler } from './errors';
 
 export const createInvoiceHandler = async (req: Request, res: Response) => {
@@ -38,7 +39,7 @@ export const createInvoiceHandler = async (req: Request, res: Response) => {
 
 export const listInvoicesHandler = async (req: Request, res: Response) => {
   let queryParams: ListInvoicesRequest = {
-    page: Number(req.query.page),
+    type: req.query.type as InvoiceType,
   };
   const { data, error } = await listInvoices(queryParams, req.user.user_id);
   return responseHandler(res, data, 200, error);

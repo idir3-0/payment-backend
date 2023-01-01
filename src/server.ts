@@ -4,7 +4,7 @@ import express from 'express';
 import config from 'src/configs';
 import accountRoutes from './services/accounts/routes';
 import invoiceRoutes from './services/invoices/routes';
-import { adminRouter, userRouter } from './services/transactions/routes';
+import { userRouter } from './services/transactions/routes';
 import { initFirebase } from './adapters/firebase/firebase';
 
 const app = express();
@@ -16,7 +16,6 @@ initFirebase();
 
 app.use('/accounts', accountRoutes);
 app.use('/invoices', invoiceRoutes);
-app.use('/transactions', adminRouter);
 app.use('/transactions', userRouter);
 app.all('*', (req, res) => {
   res.status(404).json({ status: false, error: 'not found' });

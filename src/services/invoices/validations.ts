@@ -1,5 +1,5 @@
 import { check, query, param } from 'express-validator';
-import { InvoiceStatus } from 'src/types/invoice';
+import { InvoiceStatus } from './models';
 
 export const createInvoiceValidation = () => [
   check('billToEmail').isEmail().normalizeEmail(),
@@ -16,7 +16,7 @@ export const createInvoiceValidation = () => [
 ];
 
 export const listInvoicesValidation = () => [
-  query('page').default(0).isNumeric(),
+  query('type').isIn(['created', 'paied']),
 ];
 
 export const updateInvoiceValidation = () => [
