@@ -1,10 +1,8 @@
-import { TransactionIdInfo } from 'src/types/transactions';
+import { ListTransactionRequest } from './models';
 
-export const parseTransactionId = (id: string): TransactionIdInfo => {
-  const infos = id.split('_');
-  return {
-    type: infos[0],
-    date: infos[1],
-    id: infos[2],
-  };
+export const normalizePagination = (
+  req: ListTransactionRequest,
+): ListTransactionRequest => {
+  req.limit = 10;
+  return req;
 };

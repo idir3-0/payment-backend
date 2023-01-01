@@ -7,17 +7,24 @@ import {
   listUserTransactionsHandler,
 } from './handlers';
 import { authorizationMiddelware } from 'src/middleware/auth';
+import {
+  transactionValidation,
+  listValidation,
+  updateValidation,
+  adminUpdateValidation,
+} from './validatons';
 
 const userRouter = express.Router();
-const adminRouter = express.Router();
 userRouter.use(authorizationMiddelware);
-adminRouter.use(authorizationMiddelware);
 
-userRouter.get('/', listUserTransactionsHandler);
-userRouter.post('/deposit', depositHandler);
-userRouter.post('/withdraw', withdrawHandler);
-userRouter.put('/update', updateTransactionHandler);
+userRouter.post('/deposit', ...transactionValidation(), depositHandler);
+userRouter.post('/withdraw', ...transactionValidation(), withdrawHandler);
+userRouter.get('/', ...listValidation(), listUserTransactionsHandler);
+userRouter.put('/:type/:id', ...updateValidation(), updateTransactionHandler);
+userRouter.put(
+  '/validate/:type/:id',
+  ...adminUpdateValidation(),
+  adminUpdateTransactionHandler,
+);
 
-adminRouter.put('/validate', adminUpdateTransactionHandler);
-
-export { userRouter, adminRouter };
+export { userRouter };
