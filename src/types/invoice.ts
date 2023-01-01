@@ -1,17 +1,42 @@
 import { BusinessInfo } from './account';
 
-export type InvoiceStatus =
-  | 'archived'
-  | 'draft'
-  | 'paid'
-  | 'pending'
-  | 'closed';
-export const InvoiceOrderBy = ['createdAt'];
+export type InvoiceStatusType = 'archived' | 'draft' | 'paied' | 'pending';
+
+export const InvoiceStatus = {
+  archived: 'archived',
+  draft: 'draft',
+  paied: 'paied',
+  pending: 'pending',
+};
+
+export const InvoiceStatusState = {
+  archived: [InvoiceStatus.pending],
+  draft: [InvoiceStatus.pending, InvoiceStatus.archived],
+  paied: [],
+  pending: [InvoiceStatus.archived, InvoiceStatus.paied],
+};
+
+export interface CreateInvoiceRequest {
+  billToEmail?: string;
+  items?: Item[];
+  messageToClient?: string;
+  termAndCondition?: string;
+  referenceNumber?: string;
+  memoToSelf?: string;
+  fileUrl?: string;
+  invoiceNumber?: string;
+}
+
+export interface ListInvoicesRequest {
+  page?: number;
+  offset?: number;
+  limit?: number;
+}
 
 export interface InvoiceInfo {
   id?: string;
+  userId: string;
   billToEmail?: string;
-  email?: string;
   items?: Item;
   messageToClient?: string;
   termAndCondition?: string;
@@ -21,23 +46,10 @@ export interface InvoiceInfo {
   createdAt?: string;
   updatedAt?: string;
   invoiceNumber?: string;
-  status?: InvoiceStatus;
+  status: InvoiceStatusType;
 }
 
-export interface Invoice {
-  invoiceInfo: InvoiceInfo;
-  businessInfo: BusinessInfo;
-}
-
-export interface Item {
-  id: string;
-  line: number;
-  title: string;
-  amount: number;
-}
-
-export interface CreateInvoiceRequest {
-  userId: string;
+export interface UpdateInvoiceRequest {
   billToEmail?: string;
   email?: string;
   items?: Item;
@@ -46,41 +58,23 @@ export interface CreateInvoiceRequest {
   referenceNumber?: string;
   memoToSelf?: string;
   fileUrl?: string;
+  status?: InvoiceStatusType;
   invoiceNumber?: string;
 }
 
-export interface CreateInvoiceResponse {
+export interface PayInvoiceRequest {
+  uid: string;
   id: string;
 }
 
-export interface UpdateInvoiceRequest {
-  billToEmail?: string;
-  items?: Item;
-  messageToClient?: string;
-  termAndCondition?: string;
-  referenceNumber?: string;
-  memoToSelf?: string;
-  fileUrl?: string;
-  invoiceNumber?: string;
-}
-
-export interface UpdateInvoiceStatusRequest {
-  status: InvoiceStatus;
-}
-
-export interface ListInvoicesRequest {
-  page?: number;
-  offset?: number;
-  limit?: number;
-  orderBy?: string;
-}
-
-export interface ListInvoicesResponse {
-  total: number;
-  limit: number;
-  invoices: Array<InvoiceInfo>;
-}
-
-export interface DeleteInvoice {
+export interface GetPayInvoiceRequest {
+  uid: string;
   id: string;
+}
+
+export interface Item {
+  id: string;
+  line: number;
+  title: string;
+  amount: number;
 }
