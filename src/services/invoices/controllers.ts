@@ -35,6 +35,8 @@ import {
 } from './errors';
 import { normalizePagination } from './utils';
 import { getCurrentDate } from 'src/utils/date';
+import { newNotificationsTx } from '../notifications/controllers';
+// import { Notification, NOTIFICATIONS_KEY } from 'src/types/notifications';
 
 const INVOICE_COLLECTION_NAME = 'invoices';
 const CREATED_INVOICE_COLLECTION_NAME = 'created';
@@ -302,8 +304,8 @@ export const payInvoice = async (
         getCurrentDate(),
       );
 
-      const datetime = Timestamp.now();
-      const invoiceLocation = `${payInvoiceRequest.uid}_${INVOICE_COLLECTION_NAME}_${CREATED_INVOICE_COLLECTION_NAME}_${payInvoiceRequest.id}_${datetime.seconds}_${userId}`;
+      const createdAt = Timestamp.now().seconds;
+      const invoiceLocation = `${payInvoiceRequest.uid}_${INVOICE_COLLECTION_NAME}_${CREATED_INVOICE_COLLECTION_NAME}_${payInvoiceRequest.id}_${createdAt}_${userId}`;
 
       await tx.set(
         d2,
@@ -331,11 +333,22 @@ export const payInvoice = async (
           userId,
           memoToSelf: deleteField(),
           status: InvoiceStatus.paied,
-          createdAt: datetime.seconds,
-          updatedAt: datetime.seconds,
+          createdAt: createdAt,
+          updatedAt: createdAt,
         },
         { merge: true },
       );
+
+      // Create notification for the invoice owner
+      newNotificationsTx(tx, {
+        userId: payInvoiceRequest.uid,
+        collection: INVOICE_COLLECTION_NAME,
+        path: 'created',
+        action: InvoiceStatus.paied,
+        ownerId: payInvoiceRequest.uid,
+        refId: payInvoiceRequest.id,
+        createdAt,
+      });
     });
   } catch (error) {
     return { error };

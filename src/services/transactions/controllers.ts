@@ -9,10 +9,7 @@ import {
   limit,
   collection,
   getDocs,
-  startAt,
   orderBy,
-  endAt,
-  startAfter,
 } from 'firebase/firestore';
 import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import {
@@ -33,11 +30,14 @@ import {
   ERROR_TRANSACTION_PROCESSED,
 } from './errors';
 import { normalizePagination } from './utils';
+import { newNotificationsTx } from '../notifications/controllers';
 
 const TRANSACTIONS_COLLECTION_NAME = 'transactions';
 const TRANSACTIONS_LOG_COLLECTION_NAME = 'transactions-logs';
 const TRANSACTIONS_DEPOSIT = 'deposit';
 const TRANSACTIONS_WITHDRAW = 'withdraw';
+const TRANSACTIONS_ADMIN_TASK = 'transactions-admin-tasks';
+const NOTIFICATIONS = 'notifications';
 
 export const deposit = async (
   transactionRequest: TransactionRequest,
@@ -113,7 +113,7 @@ const baseTransaction = async (
       await tx.set(
         d2,
         {
-          logs: arrayUnion(transactionLocation),
+          logs: { transactionLocation: { status: 'open' } },
         },
         { merge: true },
       );
@@ -250,17 +250,17 @@ export const adminUpdateTransaction = async (
         throw ERROR_TRANSACTION_CAN_NOT_UPDATE;
       }
 
-      console.log(TransactionStateMap[newStatus] as string[]);
       if (!(TransactionStateMap[txStatus] as string[]).includes(newStatus)) {
         throw ERROR_TRANSACTION_INVALID_STATUS;
       }
 
+      const createdAt = Timestamp.now().seconds;
       const log = {
         fileUrls: fileUrls || null,
         note: note || null,
         userId,
         status: newStatus,
-        createdAt: Timestamp.now().seconds,
+        createdAt,
       };
 
       await tx.set(
@@ -270,6 +270,17 @@ export const adminUpdateTransaction = async (
         },
         { merge: true },
       );
+
+      // Create notification for the invoice owner
+      newNotificationsTx(tx, {
+        userId: uid,
+        collection: TRANSACTIONS_COLLECTION_NAME,
+        path: transactionIdInfo.type,
+        createdAt,
+        action: newStatus,
+        ownerId: uid,
+        refId: transactionIdInfo.id,
+      });
 
       if (
         newStatus === TransactionStatusMap.accepted ||
