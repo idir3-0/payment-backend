@@ -5,12 +5,15 @@ export const ERROR_TRANSACTION_CAN_NOT_DELETE =
   'Can not delete the transaction';
 export const ERROR_TRANSACTION_INVALID_STATUS = 'Invalid transaction status';
 export const ERROR_TRANSACTION_PROCESSED = 'The transaction was processed';
+export const ERROR_TRANSACTION_ALREADY_IN_REVIEW =
+  'Can not create new transactions.';
 
 export const errorToStatus = (err: string) => {
   switch (err) {
     case ERROR_TRANSACTION_CAN_NOT_UPDATE:
     case ERROR_TRANSACTION_CAN_NOT_DELETE:
     case ERROR_TRANSACTION_INVALID_STATUS:
+    case ERROR_TRANSACTION_ALREADY_IN_REVIEW:
     case ERROR_TRANSACTION_PROCESSED:
       return { status: 400, error: err };
     case ERROR_TRANSACTION_NOT_EXIST:

@@ -6,12 +6,16 @@ export const authorizationMiddelware = async (
   res: Response,
   next,
 ) => {
-  const accssToken = req.get('Authorization').split(' ')[1];
   try {
+    const authorization = req.get('Authorization');
+    if (!authorization) {
+      throw 'Authorization hearder does not exist';
+    }
+    const accssToken = authorization.split(' ')[1];
     const user = await admin.auth().verifyIdToken(accssToken);
     req.user = user;
     return next();
-  } catch (e) {
-    res.status(401).json({ status: false, message: 'unauthorized' });
+  } catch (error) {
+    res.status(401).json({ status: false, error });
   }
 };

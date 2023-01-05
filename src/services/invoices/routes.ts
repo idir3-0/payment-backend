@@ -21,8 +21,11 @@ import {
   getPayInvoiceValidation,
   payInvoiceValidation,
 } from './validations';
+import { isAccountActiveMiddelware } from 'src/middleware/isAccountActive';
+
 const router = express.Router();
 router.use(authorizationMiddelware);
+router.use(isAccountActiveMiddelware);
 
 router.post(
   '/',

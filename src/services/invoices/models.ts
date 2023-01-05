@@ -1,5 +1,3 @@
-import { BusinessInfo } from '../accounts/models';
-
 export type InvoiceStatusType = 'archived' | 'draft' | 'paied' | 'pending';
 
 export type InvoiceType = 'created' | 'paied';

@@ -13,9 +13,11 @@ import {
   updateValidation,
   adminUpdateValidation,
 } from './validatons';
+import { isAccountActiveMiddelware } from 'src/middleware/isAccountActive';
 
 const userRouter = express.Router();
 userRouter.use(authorizationMiddelware);
+userRouter.use(isAccountActiveMiddelware);
 
 userRouter.post('/deposit', ...transactionValidation(), depositHandler);
 userRouter.post('/withdraw', ...transactionValidation(), withdrawHandler);

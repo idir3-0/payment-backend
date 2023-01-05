@@ -1,80 +1,85 @@
-export type Roles = 'user' | 'admin';
+export const PROFILE_COLLECTION_KEY = 'profiles';
+export const BUSINESS_COLLECTION_KEY = 'businesses';
 
-// User
-export interface Address {
-  street1: string;
-  street2: string;
-  city: string;
-  zip: string;
-}
+export const Roles = {
+  admin: 'admin',
+  user: 'user',
+  business: 'business',
+};
 
-export interface UserInfo {
-  id: string;
-  userId: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  address: Address;
-  billingAddress?: Address;
-  isActive: boolean;
-  createdAt: Number;
-}
+export const RoleCollection = {
+  user: PROFILE_COLLECTION_KEY,
+  business: BUSINESS_COLLECTION_KEY,
+};
 
-export interface CreateUserRequest {
+export const AccoutValidationStatus = {
+  in_review: 'in_review',
+  request_update: 'request_update',
+  active: 'active',
+  blocked: 'blocked',
+};
+
+export interface LoginTestUserRequest {
   email: string;
   password: string;
 }
 
-export interface LoginUserRequest {
+export interface CreateTestUserRequest {
   email: string;
   password: string;
 }
 
-export interface UpdateUserInfoRequest {
+export interface UserProfile {
   firstName: string;
   lastName: string;
-  phoneNumber: string;
   address: Address;
-  billingAddress?: Address;
+  nationalIdFile?: string;
 }
 
-// Business
-export interface BusinessInfo {
-  name: string;
-  logo: string;
+export interface BusinessProfile {
+  displayName: string;
+  firstName: string;
+  lastName: string;
   description: string;
-  website: string;
-  identityCardId: string;
-  incomeTaxId: string;
-  businessRegisterId: string;
+  logo: string;
   address: Address;
-  isActive: boolean;
-  createdAt: Number;
-  updatedAt: Number;
+  businessLegal?: BusinessLegal;
+}
+
+export interface Address {
+  street: string;
+  city: string;
+  country: string;
+  zipCode: string;
+}
+
+export interface BusinessLegal {
+  tradeRegisterFile: string;
+  taxID: string;
 }
 
 export interface CreateBusinessRequest {
-  name: string;
-  logo: string;
-  description: string;
-  website: string;
-  identityCardId: string;
-  incomeTaxId: string;
-  businessRegisterId: string;
+  businessProfile: BusinessProfile;
 }
 
-export interface UpdateBusinessRequest {
-  name: string;
-  logo: string;
-  description: string;
-  website: string;
-  identityCardId: string;
-  incomeTaxId: string;
-  businessRegisterId: string;
+export interface SetupUserAccountRequest {
+  userProfile: UserProfile;
 }
 
-// Account
-export interface UserAccount {
-  user: UserInfo;
-  businessInfo?: BusinessInfo;
+export interface SetupBusinessRequest {
+  businessProfile: BusinessProfile;
+}
+
+export interface AdminValidateSetupAccountRequest {
+  uid: string;
+  content?: string;
+  status: boolean;
+}
+
+export interface UpdateBusinessRequest extends BusinessProfile {
+  isActive: boolean; // If true the user can not update the legal docs
+}
+
+export interface UpdateProfileRequest extends UserProfile {
+  isActive: boolean; // If true the user can not update the legal docs
 }

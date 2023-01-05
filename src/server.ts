@@ -2,7 +2,7 @@ import 'module-alias/register';
 import express from 'express';
 
 import config from 'src/configs';
-import accountRoutes from './services/accounts/routes';
+import { accountRouter, testAccountRouter } from './services/accounts/routes';
 import invoiceRoutes from './services/invoices/routes';
 import { userRouter } from './services/transactions/routes';
 import { notificationRouter } from './services/notifications/routes';
@@ -15,7 +15,9 @@ const port = config.server.appPort;
 
 initFirebase();
 
-app.use('/accounts', accountRoutes);
+testAccountRouter;
+app.use('/test-accounts', testAccountRouter);
+app.use('/accounts', accountRouter);
 app.use('/invoices', invoiceRoutes);
 app.use('/transactions', userRouter);
 app.use('/notifications', notificationRouter);

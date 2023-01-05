@@ -30,8 +30,9 @@ export const newNotification = (
  *
  * @param notification the notification log stored in the database
  * Example:
- * {invoices}_{2vk0GHROIdzZBtDnyymOmrd0Y54X}_{created}_{cc469e7d-0e53-4d74-a403-8e23cc7263e8}_{paied}_{timestamp}_{status 0 or 1}
- * transactions_2vk0GHROIdzZBtDnyymOmrd0Y54X_deposit_cc469e7d-0e53-4d74-a403-8e23cc7263e8_accepted_{timestamp}_{status 0 or 1}
+ * {collection}_{owner_id}_{path}_{ref_id}_{action}_{createdAt}_{read}
+ * {invoices}_{2vk0GHROIdzZBtDnyymOmrd0Y54X}_{created}_{cc469e7d-0e53-4d74-a403-8e23cc7263e8}_{paied}_{timestamp}_{0 or 1}
+ * transactions_2vk0GHROIdzZBtDnyymOmrd0Y54X_deposit_cc469e7d-0e53-4d74-a403-8e23cc7263e8_accepted_{timestamp}_{0 or 1}
  * @returns notifiaction object
  */
 export const toNotification = (notification: string): Notification => {

@@ -10,6 +10,8 @@ import {
   collection,
   getDocs,
   orderBy,
+  where,
+  getCountFromServer,
 } from 'firebase/firestore';
 import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import {
@@ -21,9 +23,12 @@ import {
   TransactionStateMap,
   TransactionStatusMap,
   ListTransactionRequest,
+  TransactionLog,
+  TransactionStatusType,
 } from './models';
 import { getCurrentDate } from 'src/utils/date';
 import {
+  ERROR_TRANSACTION_ALREADY_IN_REVIEW,
   ERROR_TRANSACTION_CAN_NOT_UPDATE,
   ERROR_TRANSACTION_INVALID_STATUS,
   ERROR_TRANSACTION_NOT_EXIST,
@@ -36,8 +41,6 @@ const TRANSACTIONS_COLLECTION_NAME = 'transactions';
 const TRANSACTIONS_LOG_COLLECTION_NAME = 'transactions-logs';
 const TRANSACTIONS_DEPOSIT = 'deposit';
 const TRANSACTIONS_WITHDRAW = 'withdraw';
-const TRANSACTIONS_ADMIN_TASK = 'transactions-admin-tasks';
-const NOTIFICATIONS = 'notifications';
 
 export const deposit = async (
   transactionRequest: TransactionRequest,
@@ -61,6 +64,20 @@ const baseTransaction = async (
 ) => {
   let id = randomUUID();
   try {
+    const d = collection(
+      firebaseDatabase,
+      TRANSACTIONS_COLLECTION_NAME,
+      transactionType,
+      userId,
+    );
+
+    const q = query(d, where('status', '==', TransactionStatusMap.processing));
+    const docsSnap = await getDocs(q);
+    const numActiveDocs = docsSnap.size;
+    if (numActiveDocs >= 1) {
+      throw ERROR_TRANSACTION_ALREADY_IN_REVIEW;
+    }
+
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
       // Path: transactions-{deposit | withdraw} > [user_id] > deposit | withdraw > ID
       const d1 = doc(
@@ -76,6 +93,7 @@ const baseTransaction = async (
         amount: transactionRequest.amount,
         bank: transactionRequest.bank,
         createdAt: datetime.seconds,
+        status: TransactionStatusMap.processing,
         userId,
         logs: [
           {
@@ -113,13 +131,14 @@ const baseTransaction = async (
       await tx.set(
         d2,
         {
-          logs: { transactionLocation: { status: 'open' } },
+          logs: arrayUnion(transactionLocation),
         },
         { merge: true },
       );
     });
     return { data: { id } };
   } catch (error) {
+    console.log(error);
     return { error };
   }
 };
@@ -156,11 +175,11 @@ export const userUpdateTransaction = async (
         throw ERROR_TRANSACTION_PROCESSED;
       }
 
-      const log = {
-        userId,
+      const log: TransactionLog = {
+        createdBy: userId,
         fileUrls: userUpdateTransactionRequest.fileUrls,
         note: userUpdateTransactionRequest.note,
-        status: TransactionStatusMap.processing,
+        status: TransactionStatusMap.processing as TransactionStatusType,
         createdAt: Timestamp.now().seconds,
       };
       await tx.set(
@@ -255,10 +274,10 @@ export const adminUpdateTransaction = async (
       }
 
       const createdAt = Timestamp.now().seconds;
-      const log = {
+      const log: TransactionLog = {
         fileUrls: fileUrls || null,
         note: note || null,
-        userId,
+        createdBy: userId,
         status: newStatus,
         createdAt,
       };
@@ -266,6 +285,7 @@ export const adminUpdateTransaction = async (
       await tx.set(
         d1,
         {
+          status: newStatus,
           logs: arrayUnion(log),
         },
         { merge: true },
