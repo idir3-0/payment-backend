@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import {
   depositHandler,
-  updateTransactionHandler,
+  userUpdateTransactionHandler,
   adminUpdateTransactionHandler,
   withdrawHandler,
   listUserTransactionsHandler,
@@ -14,18 +14,42 @@ import {
   adminUpdateValidation,
 } from './validatons';
 import { isAccountActiveMiddelware } from 'src/middleware/isAccountActive';
+import { validatorMiddelware } from 'src/middleware/validator';
+import { isAdminMiddelware } from 'src/middleware/isAdmin';
 
 const userRouter = express.Router();
 userRouter.use(authorizationMiddelware);
 userRouter.use(isAccountActiveMiddelware);
 
-userRouter.post('/deposit', ...transactionValidation(), depositHandler);
-userRouter.post('/withdraw', ...transactionValidation(), withdrawHandler);
-userRouter.get('/', ...listValidation(), listUserTransactionsHandler);
-userRouter.put('/:type/:id', ...updateValidation(), updateTransactionHandler);
+userRouter.post(
+  '/deposit',
+  ...transactionValidation(),
+  validatorMiddelware,
+  depositHandler,
+);
+userRouter.post(
+  '/withdraw',
+  ...transactionValidation(),
+  validatorMiddelware,
+  withdrawHandler,
+);
+userRouter.get(
+  '/',
+  ...listValidation(),
+  validatorMiddelware,
+  listUserTransactionsHandler,
+);
 userRouter.put(
-  '/validate/:type/:id',
+  '/',
+  ...updateValidation(),
+  validatorMiddelware,
+  userUpdateTransactionHandler,
+);
+userRouter.put(
+  '/validate',
+  isAdminMiddelware,
   ...adminUpdateValidation(),
+  validatorMiddelware,
   adminUpdateTransactionHandler,
 );
 

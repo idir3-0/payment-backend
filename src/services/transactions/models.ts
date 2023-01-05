@@ -1,6 +1,24 @@
 export type Bank = 'CCP';
 export type TransactionType = 'deposit' | 'withdraw';
 
+export type TransactionAction = 'create' | 'update';
+
+export const TransactionActionMap: {
+  create: TransactionAction;
+  update: TransactionAction;
+} = {
+  create: 'create',
+  update: 'update',
+};
+
+export const TransactionTypeMap: {
+  deposit: TransactionType;
+  withdraw: TransactionType;
+} = {
+  deposit: 'deposit',
+  withdraw: 'withdraw',
+};
+
 export type TransactionStatusType =
   | 'requested'
   | 'processing'
@@ -12,11 +30,11 @@ export type TransactionStatusType =
 export const Banks = ['ccp'];
 
 export interface TransactionStatus {
-  requested: string;
-  processing: string;
-  rejected: string;
-  accepted: string;
-  funded: string;
+  requested: TransactionStatusType;
+  processing: TransactionStatusType;
+  rejected: TransactionStatusType;
+  accepted: TransactionStatusType;
+  funded: TransactionStatusType;
 }
 
 export const TransactionStatusMap: TransactionStatus = {
@@ -43,49 +61,54 @@ export const TransactionStateMap: TransactionStateMapInterface = {
   funded: [],
 };
 
-export interface TransactionInfo {
-  bank: Bank;
-  amount: number;
-  userId: string;
+export interface DWTransaction extends BaseTransaction, BankInfos {
   logs: TransactionLog[];
 }
 
-export interface TransactionRequest {
-  bank: Bank;
-  amount: number;
-  note?: string;
-  fileURLs?: string[];
-}
-
-export interface TransactionLog {
-  note?: string;
-  fileUrls?: string[];
-  status: TransactionStatusType;
+export interface BaseTransaction {
   createdBy: string;
+  status: TransactionStatusType;
   createdAt: number;
 }
 
-export interface UserUpdateTransactionRequest {
-  transactionIdInfo: TransactionIdInfo;
-  note?: string;
-  fileUrls?: string[];
+export interface BankInfos {
+  bank: Bank;
+  amount: number;
 }
 
-export interface AdminUpdateTransactionRequest {
-  transactionIdInfo: TransactionIdInfo;
-  uid: string;
+export interface TransactionLog {
   status: TransactionStatusType;
   note?: string;
-  fileUrls?: string[];
+  fileURLs?: string[];
+  createdBy: string;
+  createdAt?: number;
 }
 
-export interface TransactionIdInfo {
-  type: TransactionType;
-  id: string;
+export interface TransactionRequest extends BankInfos, TransactionLog {}
+
+export interface TransactionMetadata {
+  transactionType: TransactionType;
+  transactionId: string;
+}
+export interface UpdateTransactionRequest
+  extends TransactionMetadata,
+    TransactionLog {}
+
+export interface AdminUpdateTransactionRequest
+  extends UpdateTransactionRequest {
+  transactionOwner: string;
+  status: TransactionStatusType;
 }
 
 export interface ListTransactionRequest {
+  owner: string;
   transactionType: TransactionType;
-  startAfter: string;
-  limit?: number;
+}
+
+export interface TransactionAdminLog {
+  transactionId: string;
+  transactionType: TransactionType;
+  transactionOwner: string;
+  transactionAction: TransactionAction;
+  createdAt: number;
 }

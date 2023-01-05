@@ -6,7 +6,7 @@ export const isAccountActiveMiddelware = async (
   next,
 ) => {
   try {
-    if (!req.user.acv) {
+    if (req.user.acv) {
       throw 'The account in not active';
     }
     return next();
