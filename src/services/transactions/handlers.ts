@@ -52,8 +52,7 @@ export const userUpdateTransactionHandler = async (
 ) => {
   const userUpdateTransactionRequest: UpdateTransactionRequest = {
     createdBy: req.user.user_id,
-    transactionId: req.body.transactionId,
-    transactionType: req.body.transactionType,
+    transactionId: req.params.transactionId,
     note: req.body.note,
     fileURLs: req.body.fileURLs,
     status: TransactionStatusMap.processing,
@@ -72,9 +71,7 @@ export const adminUpdateTransactionHandler = async (
 ) => {
   const adminUpdateTransactionRequest: AdminUpdateTransactionRequest = {
     createdBy: req.user.user_id,
-    transactionId: req.body.transactionId,
-    transactionType: req.body.transactionType,
-    transactionOwner: req.body.transactionOwner,
+    transactionId: req.params.transactionId,
     status: req.body.status,
     fileURLs: req.body.fileURLs,
     note: req.body.note,
@@ -92,6 +89,7 @@ export const listUserTransactionsHandler = async (
   const listTransactionRequest: ListTransactionRequest = {
     owner: req.user.user_id,
     transactionType: req.query.transactionType as TransactionType,
+    limit: 10,
   };
 
   const { data, error } = await listUserTransactions(listTransactionRequest);

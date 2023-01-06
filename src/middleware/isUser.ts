@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { Roles } from 'src/services/accounts/models';
 
-export const isAdminMiddelware = async (req: Request, res: Response, next) => {
+export const isUserMiddelware = async (req: Request, res: Response, next) => {
   try {
-    if (!(req.user.role === Roles.admin)) {
-      throw 'Unauthorized: not admin';
+    if (!(req.user.role === Roles.user)) {
+      throw 'Unauthorized: not user';
     }
     return next();
   } catch (error) {

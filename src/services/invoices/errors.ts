@@ -3,6 +3,7 @@ export const ERROR_INVOICE_CAN_NOT_UPDATE = 'Can not update the invoice';
 export const ERROR_INVOICE_CAN_NOT_DELETE = 'Can not delete the invoice';
 export const ERROR_INVOICE_INVALID_STATUS = 'Invalid invoice status';
 export const ERROR_INVOICE_UNAUTH_PAY = 'Unauth to pay the invoice';
+export const ERROR_INVOICE_DELETE = 'Can not delete the invoice';
 export const ERROR_INVOICE_ALREADY_PAIED = 'The invoice was already paied';
 
 export const errorToStatus = (err: string) => {

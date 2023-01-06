@@ -12,28 +12,13 @@ export const RoleCollection = {
   business: BUSINESS_COLLECTION_KEY,
 };
 
-export const AccoutValidationStatus = {
-  in_review: 'in_review',
-  request_update: 'request_update',
-  active: 'active',
-  blocked: 'blocked',
-};
-
-export interface LoginTestUserRequest {
-  email: string;
-  password: string;
-}
-
-export interface CreateTestUserRequest {
-  email: string;
-  password: string;
-}
-
 export interface UserProfile {
   firstName: string;
   lastName: string;
   address: Address;
-  nationalIdFile?: string;
+  nationalIdFile: string;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface BusinessProfile {
@@ -44,6 +29,8 @@ export interface BusinessProfile {
   logo: string;
   address: Address;
   businessLegal?: BusinessLegal;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface Address {
@@ -62,24 +49,44 @@ export interface CreateBusinessRequest {
   businessProfile: BusinessProfile;
 }
 
-export interface SetupUserAccountRequest {
-  userProfile: UserProfile;
+export interface SetupUserAccountRequest extends UserProfile {
+  userId: string;
 }
 
-export interface SetupBusinessRequest {
-  businessProfile: BusinessProfile;
+export interface SetupBusinessRequest extends BusinessProfile {
+  userId: string;
 }
 
 export interface AdminValidateSetupAccountRequest {
-  uid: string;
+  userId: string;
   content?: string;
   status: boolean;
 }
 
 export interface UpdateBusinessRequest extends BusinessProfile {
+  userId: string;
   isActive: boolean; // If true the user can not update the legal docs
 }
 
 export interface UpdateProfileRequest extends UserProfile {
+  userId: string;
   isActive: boolean; // If true the user can not update the legal docs
+}
+
+export interface GetUserProfileRequest {
+  userId: string;
+}
+
+export interface GetBusinessRequest {
+  userId: string;
+}
+
+export interface LoginTestUserRequest {
+  email: string;
+  password: string;
+}
+
+export interface CreateTestUserRequest {
+  email: string;
+  password: string;
 }

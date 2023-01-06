@@ -1,111 +1,73 @@
-import { randomUUID } from 'crypto';
 import {
   collection,
   doc,
   getDoc,
   limit,
-  startAt,
   query,
   orderBy,
   getDocs,
-  Timestamp,
   runTransaction,
   Transaction,
-  arrayUnion,
-  deleteField,
+  addDoc,
+  where,
+  setDoc,
+  documentId,
+  deleteDoc,
 } from 'firebase/firestore';
 import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import {
   CreateInvoiceRequest,
   ListInvoicesRequest,
-  InvoiceInfo,
+  GetInvoiceRequest,
+  BaseInvoice,
   UpdateInvoiceRequest,
-  InvoiceStatus,
+  InvoiceStatusMap,
   PayInvoiceRequest,
+  DeleteInvoiceRequest,
   InvoiceStatusState,
-  GetPayInvoiceRequest,
+  BaseOwnerInvoice,
 } from './models';
 import {
   ERROR_INVOICE_NOT_EXIST,
   ERROR_INVOICE_CAN_NOT_UPDATE,
-  ERROR_INVOICE_CAN_NOT_DELETE,
   ERROR_INVOICE_INVALID_STATUS,
   ERROR_INVOICE_UNAUTH_PAY,
   ERROR_INVOICE_ALREADY_PAIED,
+  ERROR_INVOICE_DELETE,
 } from './errors';
-import { normalizePagination } from './utils';
-import { getCurrentDate } from 'src/utils/date';
-import { newNotificationsTx } from '../notifications/controllers';
-// import { Notification, NOTIFICATIONS_KEY } from 'src/types/notifications';
 
 const INVOICE_COLLECTION_NAME = 'invoices';
-const CREATED_INVOICE_COLLECTION_NAME = 'created';
-const PAIED_INVOICE_COLLECTION_NAME = 'paied';
 
 export const createInvoice = async (
-  req: CreateInvoiceRequest,
-  userId: string,
+  createInvoiceRequest: CreateInvoiceRequest,
 ) => {
-  let uuid = randomUUID();
-
   try {
-    await runTransaction(firebaseDatabase, async (tx: Transaction) => {
-      // Path: invoices > user_id > created > UUID
+    console.log(createInvoiceRequest);
+    const col = collection(firebaseDatabase, INVOICE_COLLECTION_NAME);
+    const invoice = await addDoc(col, createInvoiceRequest);
 
-      const d1 = doc(
-        firebaseDatabase,
-        INVOICE_COLLECTION_NAME,
-        userId,
-        CREATED_INVOICE_COLLECTION_NAME,
-        uuid,
-      );
-
-      const datetime = Timestamp.now();
-      await tx.set(d1, {
-        ...req,
-        userId,
-        status: InvoiceStatus.draft,
-        createdAt: datetime.seconds,
-      });
-
-      const invoiceLocation = `${userId}_${INVOICE_COLLECTION_NAME}_${CREATED_INVOICE_COLLECTION_NAME}_${uuid}_${datetime.seconds}`;
-
-      const d2 = doc(
-        firebaseDatabase,
-        `${INVOICE_COLLECTION_NAME}-create-log`,
-        getCurrentDate(),
-      );
-
-      await tx.set(
-        d2,
-        {
-          logs: arrayUnion(invoiceLocation),
-        },
-        { merge: true },
-      );
-    });
     return {
-      data: { id: uuid },
+      data: { id: invoice.id },
     };
   } catch (error) {
+    console.log(error);
     return { error };
   }
 };
 
 export const listInvoices = async (
-  req: ListInvoicesRequest,
-  userId: string,
+  listInvoicesRequest: ListInvoicesRequest,
 ) => {
   try {
-    const { limit: lim, type } = normalizePagination(req);
-    const col = collection(
-      firebaseDatabase,
-      INVOICE_COLLECTION_NAME,
-      userId,
-      type,
-    );
+    const { userId, key } = listInvoicesRequest;
+    const col = collection(firebaseDatabase, INVOICE_COLLECTION_NAME);
 
-    const q = query(col, orderBy('createdAt'), limit(lim));
+    const q = query(
+      col,
+      orderBy('createdAt'),
+      where(key, '==', userId),
+      limit(10),
+    );
     const invoicesSnap = await getDocs(q);
     const invoices = [];
     invoicesSnap.forEach((inv) => {
@@ -115,298 +77,160 @@ export const listInvoices = async (
       };
       invoices.push(invoice);
     });
-    return { data: { invoices, limit: lim } };
+    return { data: { invoices, limit: 10 } };
   } catch (error) {
     return { error };
   }
 };
 
 export const updateInvoice = async (
-  id: string,
   updateInvoiceRequest: UpdateInvoiceRequest,
-  userId: string,
 ) => {
   try {
-    await runTransaction(firebaseDatabase, async (tx: Transaction) => {
-      const d = doc(
-        firebaseDatabase,
-        INVOICE_COLLECTION_NAME,
-        userId,
-        CREATED_INVOICE_COLLECTION_NAME,
-        id,
-      );
+    const {
+      billToEmail,
+      items,
+      messageToClient,
+      termAndCondition,
+      referenceNumber,
+      fileURLs,
+      status,
+      invoiceNumber,
+      createdAt,
+      updatedAt,
+      invoiceId,
+    } = updateInvoiceRequest;
 
-      const invoiceSnapshot = await tx.get(d);
-      const invoice = invoiceSnapshot.data() as InvoiceInfo;
+    const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
+    const invoiceSnapshot = await getDoc(d);
+    const invoice = invoiceSnapshot.data() as BaseInvoice;
+    if (!invoice) {
+      throw ERROR_INVOICE_NOT_EXIST;
+    }
 
-      if (!invoice) {
-        throw ERROR_INVOICE_NOT_EXIST;
+    if (invoice.status !== InvoiceStatusMap.draft) {
+      throw ERROR_INVOICE_CAN_NOT_UPDATE;
+    }
+
+    if (status) {
+      if (
+        !InvoiceStatusState[invoice.status].includes(status) ||
+        status === InvoiceStatusMap.paied
+      ) {
+        throw ERROR_INVOICE_INVALID_STATUS;
       }
+    }
 
-      if (invoice.status !== InvoiceStatus.draft) {
-        throw ERROR_INVOICE_CAN_NOT_UPDATE;
-      }
-
-      if (updateInvoiceRequest.status) {
-        if (
-          !InvoiceStatusState[invoice.status].includes(
-            updateInvoiceRequest.status,
-          ) ||
-          updateInvoiceRequest.status === InvoiceStatus.paied
-        ) {
-          throw ERROR_INVOICE_INVALID_STATUS;
-        }
-      }
-
-      tx.set(
-        d,
-        {
-          billToEmail: updateInvoiceRequest.billToEmail || invoice.billToEmail,
-          items: updateInvoiceRequest.items || invoice.items,
-          messageToClient:
-            updateInvoiceRequest.messageToClient || invoice.messageToClient,
-          termAndCondition:
-            updateInvoiceRequest.termAndCondition || invoice.termAndCondition,
-          referenceNumber:
-            updateInvoiceRequest.referenceNumber || invoice.referenceNumber,
-          memoToSelf: updateInvoiceRequest.memoToSelf || invoice.memoToSelf,
-          fileUrl: updateInvoiceRequest.fileUrl || invoice.fileUrl,
-          invoiceNumber:
-            updateInvoiceRequest.invoiceNumber || invoice.invoiceNumber,
-          status: updateInvoiceRequest.status || invoice.status,
-          updatedAt: Timestamp.now().seconds,
-        },
-        { merge: true },
-      );
-
-      if (updateInvoiceRequest.status != InvoiceStatus.draft) {
-        const d2 = doc(
-          firebaseDatabase,
-          `${INVOICE_COLLECTION_NAME}-${
-            InvoiceStatus[updateInvoiceRequest.status]
-          }-log`,
-          getCurrentDate(),
-        );
-
-        const datetime = Timestamp.now();
-        const invoiceLocation = `${userId}_${INVOICE_COLLECTION_NAME}_${CREATED_INVOICE_COLLECTION_NAME}_${id}_${datetime.seconds}`;
-
-        await tx.set(
-          d2,
-          {
-            logs: arrayUnion(invoiceLocation),
-          },
-          { merge: true },
-        );
-      }
-    });
+    setDoc(
+      d,
+      {
+        billToEmail: billToEmail || invoice.billToEmail,
+        items: items || invoice.items,
+        messageToClient: messageToClient || invoice.messageToClient,
+        termAndCondition: termAndCondition || invoice.termAndCondition,
+        referenceNumber: referenceNumber || invoice.referenceNumber,
+        fileURLs: fileURLs || invoice.fileURLs,
+        status: status || invoice.status,
+        invoiceNumber: invoiceNumber || invoice.invoiceNumber,
+        updatedAt,
+      },
+      { merge: true },
+    );
+    return { data: {} };
   } catch (error) {
     return { error };
   }
-  return {};
 };
 
-export const deleteInvoice = async (id: string, userId: string) => {
+export const deleteInvoice = async (
+  deleteInvoiceRequest: DeleteInvoiceRequest,
+) => {
   try {
-    await runTransaction(firebaseDatabase, async (tx: Transaction) => {
-      const d = doc(
-        firebaseDatabase,
-        INVOICE_COLLECTION_NAME,
-        userId,
-        CREATED_INVOICE_COLLECTION_NAME,
-        id,
-      );
+    const { createdBy, invoiceId } = deleteInvoiceRequest;
+    const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
 
-      const invoiceSnapshot = await tx.get(d);
-      const invoice = invoiceSnapshot.data() as InvoiceInfo;
+    const invoiceSnapshot = await getDoc(d);
+    const invoice = invoiceSnapshot.data() as BaseOwnerInvoice;
 
-      if (!invoice) {
-        throw ERROR_INVOICE_NOT_EXIST;
-      }
+    if (!invoice) {
+      throw ERROR_INVOICE_NOT_EXIST;
+    }
 
-      if (invoice.status !== InvoiceStatus.draft) {
-        throw ERROR_INVOICE_CAN_NOT_DELETE;
-      }
+    if (
+      invoice.createdBy != createdBy ||
+      invoice.status != InvoiceStatusMap.draft
+    ) {
+      throw ERROR_INVOICE_DELETE;
+    }
 
-      tx.delete(d);
-
-      const d2 = doc(
-        firebaseDatabase,
-        `${INVOICE_COLLECTION_NAME}-delete-log`,
-        getCurrentDate(),
-      );
-
-      const datetime = Timestamp.now();
-      const invoiceLocation = `${userId}_${INVOICE_COLLECTION_NAME}_${CREATED_INVOICE_COLLECTION_NAME}_${id}_${datetime.seconds}`;
-
-      await tx.set(
-        d2,
-        {
-          logs: arrayUnion(invoiceLocation),
-        },
-        { merge: true },
-      );
-    });
+    await deleteDoc(d);
+    return { data: { id: invoiceId } };
   } catch (error) {
     return { error };
   }
-  return { data: { id } };
 };
 
-export const payInvoice = async (
-  payInvoiceRequest: PayInvoiceRequest,
-  userId: string,
-  userEmail: string,
-) => {
+export const payInvoice = async (payInvoiceRequest: PayInvoiceRequest) => {
   try {
-    await runTransaction(firebaseDatabase, async (tx: Transaction) => {
-      const d = doc(
-        firebaseDatabase,
-        INVOICE_COLLECTION_NAME,
-        payInvoiceRequest.uid,
-        CREATED_INVOICE_COLLECTION_NAME,
-        payInvoiceRequest.id,
-      );
+    const { invoiceId, payerEmail, payerId, createdAt } = payInvoiceRequest;
 
+    await runTransaction(firebaseDatabase, async (tx: Transaction) => {
+      const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
       const invoiceSnapshot = await tx.get(d);
 
-      const invoice = invoiceSnapshot.data() as InvoiceInfo;
+      const invoice = invoiceSnapshot.data() as BaseInvoice;
       if (!invoice) {
         throw ERROR_INVOICE_NOT_EXIST;
       }
 
       // TODO: interact with the contract to pay the invoice
-
-      if (invoice.billToEmail !== userEmail) {
+      if (invoice.billToEmail !== payerEmail) {
         throw ERROR_INVOICE_UNAUTH_PAY;
       }
 
-      if (invoice.status === InvoiceStatus.paied) {
+      if (invoice.status === InvoiceStatusMap.paied) {
         throw ERROR_INVOICE_ALREADY_PAIED;
       }
 
-      if (invoice.status !== InvoiceStatus.pending) {
+      if (invoice.status !== InvoiceStatusMap.pending) {
         throw ERROR_INVOICE_NOT_EXIST;
       }
 
       tx.set(
         d,
         {
-          status: InvoiceStatus.paied,
-          updatedAt: Timestamp.now().seconds,
-        },
-        { merge: true },
-      );
-
-      const d2 = doc(
-        firebaseDatabase,
-        `${INVOICE_COLLECTION_NAME}-paied-log`,
-        getCurrentDate(),
-      );
-
-      const createdAt = Timestamp.now().seconds;
-      const invoiceLocation = `${payInvoiceRequest.uid}_${INVOICE_COLLECTION_NAME}_${CREATED_INVOICE_COLLECTION_NAME}_${payInvoiceRequest.id}_${createdAt}_${userId}`;
-
-      await tx.set(
-        d2,
-        {
-          logs: arrayUnion(invoiceLocation),
-        },
-        { merge: true },
-      );
-
-      const d3 = doc(
-        firebaseDatabase,
-        INVOICE_COLLECTION_NAME,
-        userId,
-        PAIED_INVOICE_COLLECTION_NAME,
-        payInvoiceRequest.id,
-      );
-
-      await tx.set(
-        d3,
-        {
-          ...invoice,
-          invoiceInfo: {
-            uid: payInvoiceRequest.uid,
-          },
-          userId,
-          memoToSelf: deleteField(),
-          status: InvoiceStatus.paied,
-          createdAt: createdAt,
+          payerId,
+          status: InvoiceStatusMap.paied,
           updatedAt: createdAt,
         },
         { merge: true },
       );
-
-      // Create notification for the invoice owner
-      newNotificationsTx(tx, {
-        userId: payInvoiceRequest.uid,
-        collection: INVOICE_COLLECTION_NAME,
-        path: 'created',
-        action: InvoiceStatus.paied,
-        ownerId: payInvoiceRequest.uid,
-        refId: payInvoiceRequest.id,
-        createdAt,
-      });
     });
-  } catch (error) {
-    return { error };
-  }
-  return { data: { id: payInvoiceRequest.id } };
-};
-
-export const getInvoice = async (id: string, userId: string) => {
-  try {
-    const d1 = doc(
-      firebaseDatabase,
-      INVOICE_COLLECTION_NAME,
-      userId,
-      CREATED_INVOICE_COLLECTION_NAME,
-      id,
-    );
-
-    const invoiceSnap = await getDoc(d1);
-    const invoice = invoiceSnap.data() as InvoiceInfo;
-    if (!invoice) {
-      throw ERROR_INVOICE_NOT_EXIST;
-    }
-    return { data: { invoice } };
+    return { data: { id: invoiceId } };
   } catch (error) {
     return { error };
   }
 };
 
-export const getPayInvoice = async (
-  getPayInvoiceRequest: GetPayInvoiceRequest,
-  userEmail: string,
-) => {
+export const getInvoice = async (getInvoiceRequest: GetInvoiceRequest) => {
+  const { invoiceId, userId, userEmail } = getInvoiceRequest;
   try {
-    const d1 = doc(
-      firebaseDatabase,
-      INVOICE_COLLECTION_NAME,
-      getPayInvoiceRequest.uid,
-      CREATED_INVOICE_COLLECTION_NAME,
-      getPayInvoiceRequest.id,
-    );
-
-    const invoiceSnap = await getDoc(d1);
-    const invoice = invoiceSnap.data() as InvoiceInfo;
+    const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
+    const invoiceSnapshot = await getDoc(d);
+    const invoice = invoiceSnapshot.data() as BaseOwnerInvoice;
     if (!invoice) {
       throw ERROR_INVOICE_NOT_EXIST;
     }
 
-    if (invoice.status !== InvoiceStatus.pending) {
-      throw ERROR_INVOICE_NOT_EXIST;
+    if (userId == invoice.createdBy) {
+      return { data: { invoice } };
     }
 
-    if (userEmail !== invoice.billToEmail) {
-      throw ERROR_INVOICE_UNAUTH_PAY;
+    if (userId == invoice.payerId || userEmail == invoice.billToEmail) {
+      return { data: { invoice: invoice as BaseInvoice } };
     }
 
-    delete invoice.memoToSelf;
-
-    return { data: { ...invoice } };
+    throw ERROR_INVOICE_NOT_EXIST;
   } catch (error) {
     return { error };
   }

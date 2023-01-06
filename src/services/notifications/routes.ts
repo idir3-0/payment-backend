@@ -1,17 +1,16 @@
-import express from 'express';
+import express, { Express } from 'express';
 import { listNotificationsHandler, readNotificationsHandler } from './handlers';
 import { authorizationMiddelware } from 'src/middleware/auth';
-// import {
-//   transactionValidation,
-//   listValidation,
-//   updateValidation,
-//   adminUpdateValidation,
-// } from './validatons';
+import { isAccountActiveMiddelware } from 'src/middleware/isAccountActive';
 
-const notificationRouter = express.Router();
-notificationRouter.use(authorizationMiddelware);
+export const initNotificationRoutes = (app: Express) => {
+  const baseRouter = express.Router();
+  baseRouter.use(authorizationMiddelware);
+  baseRouter.use(isAccountActiveMiddelware);
 
-notificationRouter.get('/', listNotificationsHandler);
-notificationRouter.put('/', readNotificationsHandler);
+  baseRouter.get('/', listNotificationsHandler);
+  baseRouter.put('/', readNotificationsHandler);
 
-export { notificationRouter };
+  // Setup App
+  app.use('/notifications', baseRouter);
+};

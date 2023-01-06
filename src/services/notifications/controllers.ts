@@ -9,29 +9,39 @@ import {
 } from 'firebase/firestore';
 import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import {
-  NOTIFICATIONS_KEY,
-  CreateNotificationRequest,
-  fromNotification,
-  toNotification,
+  ListNotificationRequest,
+  CreateNotificationReauest,
   newNotification,
+  Notification,
 } from './models';
+import { NOTIFICATIONS_KEY, NOTIFICATION_DELETE_DELAY } from './constants';
 
 export const newNotificationsTx = async (
   tx: Transaction,
-  createNotificationRequest: CreateNotificationRequest,
+  createNotificationReauest: CreateNotificationReauest,
 ) => {
-  const d = getNotificationDoc(createNotificationRequest.userId);
+  const d = getNotificationDoc(createNotificationReauest.userIdinBox);
+
+  const notification: Notification = {
+    notificationJSON: newNotification(createNotificationReauest),
+    readAt: 0,
+    createdAt: Timestamp.now().seconds,
+  };
   tx.set(
     d,
     {
-      notifications: arrayUnion(newNotification(createNotificationRequest)),
+      notifications: arrayUnion(notification),
     },
     { merge: true },
   );
 };
 
-export const listNotifications = async (userId: string) => {
+export const listNotifications = async (
+  listNotificationRequest: ListNotificationRequest,
+) => {
   try {
+    // TODO: improve
+    const { userId, limit } = listNotificationRequest;
     const d = getNotificationDoc(userId);
     const notifSnap = await getDoc(d);
     const notifications = notifSnap.data();
@@ -44,31 +54,38 @@ export const listNotifications = async (userId: string) => {
   }
 };
 
-export const readNotifications = async (ids: number[], userId: string) => {
+export const readNotifications = async (userId: string) => {
   try {
+    const updatedNotifications: Notification[] = [];
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
       const d = getNotificationDoc(userId);
       const notifSnap = await tx.get(d);
-      const notifications = notifSnap.data();
+      const notificationsObject = notifSnap.data();
 
-      if (!notifications) {
+      if (!notificationsObject) {
         return { data: {} };
       }
+      const notifications = notificationsObject.notifications as Notification[];
 
-      for (let i = 0; i < ids.length; i++) {
-        if (ids[i] > notifications.notifications.length - 1) {
+      const currentTimestamp = Timestamp.now().seconds;
+      for (let i = 0; i < notifications.length; i++) {
+        let notification = notifications[i];
+        if (
+          notification.readAt !== 0 &&
+          notification.readAt + NOTIFICATION_DELETE_DELAY < currentTimestamp
+        ) {
           continue;
         }
-        const notif = toNotification(notifications.notifications[ids[i]]);
-        notif.read = '1'; // 1 means true, 0 false
-        notifications.notifications[ids[i]] = fromNotification(notif);
+        if (notification.readAt === 0) {
+          notification.readAt = currentTimestamp;
+        }
+        updatedNotifications.push(notification);
       }
-
       tx.set(d, {
-        notifications: notifications.notifications,
+        notifications: updatedNotifications,
       });
     });
-    return { data: {} };
+    return { data: { notifications: updatedNotifications } };
   } catch (error) {
     return { error };
   }

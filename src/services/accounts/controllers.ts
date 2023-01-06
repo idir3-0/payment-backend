@@ -1,7 +1,5 @@
 import {
-  Timestamp,
   Transaction,
-  arrayUnion,
   doc,
   getDoc,
   runTransaction,
@@ -16,6 +14,8 @@ import {
   RoleCollection,
   UpdateBusinessRequest,
   UpdateProfileRequest,
+  GetUserProfileRequest,
+  GetBusinessRequest,
 } from './models';
 import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import { auth } from 'firebase-admin';
@@ -27,31 +27,41 @@ import {
 import { newNotificationsTx } from 'src/services/notifications/controllers';
 
 export const setupUserAccount = async (
-  setupUserAccount: SetupUserAccountRequest,
-  userId: string,
+  setupUserAccountRequest: SetupUserAccountRequest,
 ) => {
   try {
-    const d = doc(firebaseDatabase, PROFILE_COLLECTION_KEY, userId);
-    await auth().setCustomUserClaims(userId, {
-      acv: true,
-      role: 'user',
-    });
+    const {
+      userId,
+      address,
+      firstName,
+      lastName,
+      nationalIdFile,
+      createdAt,
+      updatedAt,
+    } = setupUserAccountRequest;
+
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
+      const d = doc(firebaseDatabase, PROFILE_COLLECTION_KEY, userId);
+
       const profileSnap = await tx.get(d);
       const profile = profileSnap.data();
-
       if (profile) {
         throw ERROR_ACCOUNT_ALREADY_SETUP;
       }
-      const { firstName, lastName, address, nationalIdFile } =
-        setupUserAccount.userProfile;
 
       tx.set(d, {
         userId,
         firstName,
         lastName,
         address,
-        nationalIdFile: nationalIdFile || null,
+        nationalIdFile,
+        createdAt,
+        updatedAt,
+      });
+
+      await auth().setCustomUserClaims(userId, {
+        acv: true,
+        role: 'user',
       });
     });
     return { data: {} };
@@ -60,14 +70,20 @@ export const setupUserAccount = async (
   }
 };
 
-export const getUserProfile = async (userId: string) => {
+export const getUserProfile = async (
+  getUserProfileRequest: GetUserProfileRequest,
+) => {
   try {
+    const { userId } = getUserProfileRequest;
+
     const d = doc(firebaseDatabase, PROFILE_COLLECTION_KEY, userId);
     const profileSnap = await getDoc(d);
+
     const profile = profileSnap.data();
     if (!profile) {
       throw ERROR_ACCOUNT_NOT_EXIST;
     }
+
     return { data: profile };
   } catch (error) {
     return { error };
@@ -76,24 +92,34 @@ export const getUserProfile = async (userId: string) => {
 
 export const updateProfile = async (
   updateProfileRequest: UpdateProfileRequest,
-  userId: string,
 ) => {
   try {
+    const {
+      address,
+      firstName,
+      isActive,
+      lastName,
+      userId,
+      nationalIdFile,
+      updatedAt,
+    } = updateProfileRequest;
+
     const d = doc(firebaseDatabase, PROFILE_COLLECTION_KEY, userId);
+
     const updateData = {
-      firstName: updateProfileRequest.firstName,
-      lastName: updateProfileRequest.lastName,
-      address: updateProfileRequest.address,
+      firstName,
+      lastName,
+      address,
+      updatedAt,
     };
-    if (!updateProfileRequest.isActive) {
-      updateData['nationalIdFile'] = updateProfileRequest.nationalIdFile;
+    if (!isActive) {
+      updateData['nationalIdFile'] = nationalIdFile;
     }
 
     await setDoc(
       d,
       {
         ...updateData,
-        updatedAt: Timestamp.now().seconds,
       },
       { merge: true },
     );
@@ -105,33 +131,44 @@ export const updateProfile = async (
 
 export const setupBusinessAccount = async (
   setupBusinessRequest: SetupBusinessRequest,
-  userId: string,
 ) => {
   try {
-    await auth().setCustomUserClaims(userId, {
-      acv: true,
-      role: 'business',
-    });
-    await auth().setCustomUserClaims(userId, { acv: true, role: 'business' });
+    const {
+      address,
+      description,
+      displayName,
+      firstName,
+      lastName,
+      logo,
+      userId,
+      businessLegal,
+      createdAt,
+      updatedAt,
+    } = setupBusinessRequest;
 
-    const d = doc(firebaseDatabase, BUSINESS_COLLECTION_KEY, userId);
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
-      const businessSnap = await tx.get(d);
+      const d = doc(firebaseDatabase, BUSINESS_COLLECTION_KEY, userId);
+      const businessSnap = await getDoc(d);
       const business = businessSnap.data();
 
-      if (!business) {
-        const { address, description, displayName, logo, businessLegal } =
-          setupBusinessRequest.businessProfile;
-
-        tx.set(d, {
-          userId,
-          displayName,
-          description,
-          logo,
-          address,
-          businessLegal,
-        });
+      if (business) {
+        throw ERROR_ACCOUNT_ALREADY_SETUP;
       }
+
+      setDoc(d, {
+        userId,
+        firstName,
+        lastName,
+        displayName,
+        description,
+        logo,
+        address,
+        businessLegal,
+        createdAt,
+        updatedAt,
+      });
+
+      await auth().setCustomUserClaims(userId, { acv: true, role: 'business' });
     });
     return { data: {} };
   } catch (error) {
@@ -139,8 +176,9 @@ export const setupBusinessAccount = async (
   }
 };
 
-export const getBusiness = async (userId: string) => {
+export const getBusiness = async (getBusinessRequest: GetBusinessRequest) => {
   try {
+    const { userId } = getBusinessRequest;
     const d = doc(firebaseDatabase, BUSINESS_COLLECTION_KEY, userId);
     const businessSnap = await getDoc(d);
     const business = businessSnap.data();
@@ -155,21 +193,34 @@ export const getBusiness = async (userId: string) => {
 
 export const updateBusiness = async (
   updateBusinessRequest: UpdateBusinessRequest,
-  userId: string,
 ) => {
   try {
+    const {
+      firstName,
+      lastName,
+      address,
+      description,
+      displayName,
+      isActive,
+      logo,
+      userId,
+      businessLegal,
+      updatedAt,
+    } = updateBusinessRequest;
+
     const d = doc(firebaseDatabase, BUSINESS_COLLECTION_KEY, userId);
     const updateData = {
-      displayName: updateBusinessRequest.displayName,
-      firstName: updateBusinessRequest.firstName,
-      lastName: updateBusinessRequest.lastName,
-      description: updateBusinessRequest.description,
-      logo: updateBusinessRequest.logo,
-      address: updateBusinessRequest.address,
-      updatedAt: Timestamp.now().seconds,
+      firstName,
+      lastName,
+      address,
+      description,
+      displayName,
+      logo,
+      userId,
+      updatedAt,
     };
-    if (!updateBusinessRequest.isActive) {
-      updateData['businessLegal'] = updateBusinessRequest.businessLegal;
+    if (!isActive) {
+      updateData['businessLegal'] = businessLegal;
     }
     await setDoc(d, updateData, { merge: true });
     return { data: {} };
@@ -182,44 +233,38 @@ export const adminValidateAccount = async (
   adminValidateSetupAccountRequest: AdminValidateSetupAccountRequest,
 ) => {
   try {
+    const { status, userId, content } = adminValidateSetupAccountRequest;
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
-      const user = await auth().getUser(adminValidateSetupAccountRequest.uid);
+      const user = await auth().getUser(userId);
       const colName = RoleCollection[user.customClaims.role];
       if (!colName) {
         throw ERROR_INVALID_USER_DATA;
       }
-      const d = doc(
-        firebaseDatabase,
-        colName,
-        adminValidateSetupAccountRequest.uid,
-      );
+      const d = doc(firebaseDatabase, colName, userId);
 
       tx.set(
         d,
         {
-          error: adminValidateSetupAccountRequest.status
-            ? ''
-            : adminValidateSetupAccountRequest.content,
+          error: status ? '' : content,
         },
         { merge: true },
       );
 
       await newNotificationsTx(tx, {
-        userId: adminValidateSetupAccountRequest.uid,
+        userIdinBox: userId,
         collection: colName,
-        ownerId: adminValidateSetupAccountRequest.uid,
-        path: '',
-        refId: '',
-        action: '',
-        createdAt: Timestamp.now().seconds,
+        path: [],
+        refId: userId,
+        action: 'account validated',
       });
 
-      if (adminValidateSetupAccountRequest.status) {
-        await auth().setCustomUserClaims(adminValidateSetupAccountRequest.uid, {
+      if (status) {
+        await auth().setCustomUserClaims(userId, {
           role: user.customClaims.role,
         });
       }
     });
+
     return { data: {} };
   } catch (error) {
     return { error };

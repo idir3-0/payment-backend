@@ -4,7 +4,7 @@ import {
   Transaction,
   runTransaction,
   doc,
-  Timestamp,
+  addDoc,
   query,
   limit,
   collection,
@@ -24,8 +24,6 @@ import {
   ListTransactionRequest,
   DWTransaction,
   TransactionTypeMap,
-  TransactionAdminLog,
-  TransactionActionMap,
 } from './models';
 import { getCurrentDate } from 'src/utils/date';
 import {
@@ -52,20 +50,19 @@ const baseTransaction = async (
   transactionType: TransactionType,
   transactionRequest: TransactionRequest,
 ) => {
-  let transactionId = randomUUID();
   try {
     const { amount, bank, createdBy, status, fileURLs, note, createdAt } =
       transactionRequest;
 
-    const d = collection(
-      firebaseDatabase,
-      TRANSACTIONS_COLLECTION_NAME,
-      transactionType,
-      createdBy,
-    );
+    const d = collection(firebaseDatabase, TRANSACTIONS_COLLECTION_NAME);
 
     // Check if the user can create a deposit request.
-    const q = query(d, where('status', '==', TransactionStatusMap.processing));
+    const q = query(
+      d,
+      where('status', '==', TransactionStatusMap.processing),
+      where('transactionType', '==', transactionType),
+      where('createdBy', '==', createdBy),
+    );
     const transactionSnap = await getDocs(q);
     // TODO: improve
     const numActiveDocs = transactionSnap.size;
@@ -77,51 +74,33 @@ const baseTransaction = async (
       // TODO: check user balance when withdraw
     }
 
-    await runTransaction(firebaseDatabase, async (tx: Transaction) => {
-      // Path: transactions-{deposit | withdraw} > [user_id] > deposit | withdraw > ID
-      const d1 = doc(
-        firebaseDatabase,
-        TRANSACTIONS_COLLECTION_NAME,
-        transactionType,
-        createdBy,
-        transactionId,
-      );
+    const transaction: DWTransaction = {
+      amount,
+      bank,
+      createdAt,
+      status: TransactionStatusMap.processing,
+      createdBy,
+      transactionType,
+      logs: [
+        {
+          fileURLs,
+          note,
+          createdAt,
+          createdBy,
+          status,
+        },
+        {
+          fileURLs: [],
+          note: 'طلبك قيد المراجعة',
+          createdAt,
+          createdBy: 'system',
+          status: TransactionStatusMap.processing,
+        },
+      ],
+    };
 
-      const transaction: DWTransaction = {
-        amount,
-        bank,
-        createdAt,
-        status: TransactionStatusMap.processing,
-        createdBy,
-        logs: [
-          {
-            fileURLs,
-            note,
-            createdAt,
-            createdBy,
-            status,
-          },
-          {
-            fileURLs: [],
-            note: 'طلبك قيد المراجعة',
-            createdAt,
-            createdBy: 'system',
-            status: TransactionStatusMap.processing,
-          },
-        ],
-      };
-
-      tx.set(d1, transaction);
-
-      createTransactionAdminLog(tx, {
-        transactionId,
-        transactionAction: TransactionActionMap.create,
-        transactionOwner: createdBy,
-        transactionType,
-        createdAt,
-      });
-    });
-    return { data: { id: transactionId } };
+    const res = await addDoc(d, transaction);
+    return { data: { id: res.id } };
   } catch (error) {
     return { error };
   }
@@ -131,22 +110,13 @@ export const userUpdateTransaction = async (
   updateTransactionRequest: UpdateTransactionRequest,
 ) => {
   try {
-    const {
-      transactionId,
-      transactionType,
-      fileURLs,
-      note,
-      createdBy,
-      status,
-      createdAt,
-    } = updateTransactionRequest;
+    const { transactionId, fileURLs, note, createdBy, status, createdAt } =
+      updateTransactionRequest;
 
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
       const d1 = doc(
         firebaseDatabase,
         TRANSACTIONS_COLLECTION_NAME,
-        transactionType,
-        createdBy,
         transactionId,
       );
 
@@ -182,14 +152,6 @@ export const userUpdateTransaction = async (
         },
         { merge: true },
       );
-
-      createTransactionAdminLog(tx, {
-        transactionId,
-        transactionAction: TransactionActionMap.update,
-        transactionOwner: createdBy,
-        transactionType,
-        createdAt,
-      });
     });
     return { data: {} };
   } catch (error) {
@@ -203,16 +165,16 @@ export const listUserTransactions = async (
   listTransactionRequest: ListTransactionRequest,
 ) => {
   try {
-    const { owner, transactionType } = listTransactionRequest;
-    const col = collection(
-      firebaseDatabase,
-      TRANSACTIONS_COLLECTION_NAME,
-      transactionType,
-      owner,
-    );
+    const { owner, transactionType, limit: lim } = listTransactionRequest;
+    const col = collection(firebaseDatabase, TRANSACTIONS_COLLECTION_NAME);
 
     // TODO: add paggination
-    const q = query(col, orderBy('createdAt', 'desc'), limit(20));
+    const q = query(
+      col,
+      orderBy('createdAt', 'desc'),
+      where('createdBy', '==', owner),
+      limit(lim),
+    );
     const transactionsSnap = await getDocs(q);
     const transactions = [];
     transactionsSnap.forEach((inv) => {
@@ -222,7 +184,7 @@ export const listUserTransactions = async (
       };
       transactions.push(invoice);
     });
-    return { data: { transactions, limit: 20 } };
+    return { data: { transactions, limit: lim } };
   } catch (error) {
     return { error };
   }
@@ -232,23 +194,13 @@ export const adminUpdateTransaction = async (
   adminUpdateTransactionRequest: AdminUpdateTransactionRequest,
 ) => {
   try {
-    const {
-      transactionType,
-      transactionOwner,
-      transactionId,
-      status,
-      fileURLs,
-      note,
-      createdBy,
-      createdAt,
-    } = adminUpdateTransactionRequest;
+    const { transactionId, status, fileURLs, note, createdBy, createdAt } =
+      adminUpdateTransactionRequest;
 
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
       const d1 = doc(
         firebaseDatabase,
         TRANSACTIONS_COLLECTION_NAME,
-        transactionType,
-        transactionOwner,
         transactionId,
       );
 
@@ -291,47 +243,14 @@ export const adminUpdateTransaction = async (
 
       newNotificationsTx(tx, {
         collection: TRANSACTIONS_COLLECTION_NAME,
-        userId: transactionOwner,
-        path: transactionType,
-        createdAt,
+        userIdinBox: transaction.createdBy,
+        path: [],
         action: status,
-        ownerId: transactionOwner,
         refId: transactionId,
-      });
-
-      createTransactionAdminLog(tx, {
-        transactionId,
-        transactionAction: TransactionActionMap.update,
-        transactionOwner,
-        transactionType,
-        createdAt,
       });
     });
     return {};
   } catch (error) {
     return { error };
   }
-};
-
-const toTransactionAdminLog = (transactionAdminLog: TransactionAdminLog) => {
-  return JSON.stringify(transactionAdminLog);
-};
-
-const createTransactionAdminLog = (
-  tx: Transaction,
-  transactionAdminLog: TransactionAdminLog,
-) => {
-  const d2 = doc(
-    firebaseDatabase,
-    `${TRANSACTIONS_LOG_COLLECTION_NAME}_${transactionAdminLog.transactionType}`,
-    getCurrentDate(),
-  );
-
-  tx.set(
-    d2,
-    {
-      logs: arrayUnion(toTransactionAdminLog(transactionAdminLog)),
-    },
-    { merge: true },
-  );
 };

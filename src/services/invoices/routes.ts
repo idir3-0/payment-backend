@@ -1,13 +1,12 @@
-import express from 'express';
+import express, { Express } from 'express';
 
 import {
   createInvoiceHandler,
   deleteInvoiceHandler,
-  listInvoicesHandler,
   getInvoiceHandler,
+  listInvoicesHandler,
   updateInvoiceHandler,
   payInvoiceHandler,
-  getPayInvoiceHandler,
 } from './handlers';
 import { authorizationMiddelware } from 'src/middleware/auth';
 import { validatorMiddelware } from 'src/middleware/validator';
@@ -18,62 +17,79 @@ import {
   updateInvoiceValidation,
   deleteInvoiceValidation,
   getInvoiceValidation,
-  getPayInvoiceValidation,
   payInvoiceValidation,
 } from './validations';
 import { isAccountActiveMiddelware } from 'src/middleware/isAccountActive';
+import { isBusinessMiddelware } from 'src/middleware/isBusiness';
 
-const router = express.Router();
-router.use(authorizationMiddelware);
-router.use(isAccountActiveMiddelware);
+export const initInvoiceRoutes = (app: Express) => {
+  const baseRouter = express.Router();
+  baseRouter.use(authorizationMiddelware);
+  baseRouter.use(isAccountActiveMiddelware);
 
-router.post(
-  '/',
-  ...createInvoiceValidation(),
-  validatorMiddelware,
-  createInvoiceHandler,
-);
+  /**
+   * @summary Create invoice. Only business
+   */
+  baseRouter.post(
+    '/',
+    isBusinessMiddelware,
+    ...createInvoiceValidation(),
+    validatorMiddelware,
+    createInvoiceHandler,
+  );
 
-router.get(
-  '/:id',
-  ...getInvoiceValidation(),
-  validatorMiddelware,
-  getInvoiceHandler,
-);
+  /**
+   * @summary Get an invoice. Business and User
+   */
+  baseRouter.get(
+    '/:invoiceId',
+    ...getInvoiceValidation(),
+    validatorMiddelware,
+    getInvoiceHandler,
+  );
 
-router.get(
-  '/',
-  ...listInvoicesValidation(),
-  validatorMiddelware,
-  listInvoicesHandler,
-);
+  /**
+   * @summary Update an invoice. Only Business
+   */
+  baseRouter.put(
+    '/:invoiceId',
+    isBusinessMiddelware,
+    ...updateInvoiceValidation(),
+    validatorMiddelware,
+    updateInvoiceHandler,
+  );
 
-router.put(
-  '/:id',
-  ...updateInvoiceValidation(),
-  validatorMiddelware,
-  updateInvoiceHandler,
-);
+  /**
+   * @summary List created or paied invoices. Business and User
+   */
+  baseRouter.get(
+    '/',
+    ...listInvoicesValidation(),
+    validatorMiddelware,
+    listInvoicesHandler,
+  );
 
-router.delete(
-  '/:id',
-  ...deleteInvoiceValidation(),
-  validatorMiddelware,
-  deleteInvoiceHandler,
-);
+  /**
+   * @summary Delete an invoice. Only Business
+   */
+  baseRouter.delete(
+    '/:invoiceId',
+    isBusinessMiddelware,
+    ...deleteInvoiceValidation(),
+    validatorMiddelware,
+    deleteInvoiceHandler,
+  );
 
-router.get(
-  '/pay-invoice/:uid/:id',
-  ...getPayInvoiceValidation(),
-  validatorMiddelware,
-  getPayInvoiceHandler,
-);
+  /**
+   * @summary Update an invoice. Only Business
+   */
+  baseRouter.post(
+    '/pay-invoice/:invoiceId',
+    ...payInvoiceValidation(),
+    validatorMiddelware,
+    payInvoiceHandler,
+  );
 
-router.post(
-  '/pay-invoice/:uid/:id',
-  ...payInvoiceValidation(),
-  validatorMiddelware,
-  payInvoiceHandler,
-);
-
-export default router;
+  // Setup App
+  app.use('/invoices', baseRouter);
+};

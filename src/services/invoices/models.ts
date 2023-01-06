@@ -2,7 +2,25 @@ export type InvoiceStatusType = 'archived' | 'draft' | 'paied' | 'pending';
 
 export type InvoiceType = 'created' | 'paied';
 
-export const InvoiceStatus = {
+export type InvoiceUser = 'createdBy' | 'payerId';
+
+export const InvoiceUserMap: {
+  createdBy: InvoiceUser;
+  payerId: InvoiceUser;
+} = {
+  createdBy: 'createdBy',
+  payerId: 'payerId',
+};
+
+export const InvoiceTypeMap: {
+  created: InvoiceType;
+  paied: InvoiceType;
+} = {
+  created: 'created',
+  paied: 'paied',
+};
+
+export const InvoiceStatusMap = {
   archived: 'archived',
   draft: 'draft',
   paied: 'paied',
@@ -10,65 +28,58 @@ export const InvoiceStatus = {
 };
 
 export const InvoiceStatusState = {
-  archived: [InvoiceStatus.pending],
-  draft: [InvoiceStatus.pending, InvoiceStatus.archived],
+  archived: [InvoiceStatusMap.pending],
+  draft: [InvoiceStatusMap.pending, InvoiceStatusMap.archived],
   paied: [],
-  pending: [InvoiceStatus.archived, InvoiceStatus.paied],
+  pending: [InvoiceStatusMap.archived, InvoiceStatusMap.paied],
 };
 
-export interface CreateInvoiceRequest {
+export interface BaseInvoice {
+  invoiceId?: string;
   billToEmail?: string;
-  items?: Item[];
-  messageToClient?: string;
-  termAndCondition?: string;
-  referenceNumber?: string;
-  memoToSelf?: string;
-  fileUrl?: string;
-  invoiceNumber?: string;
-}
-
-export interface ListInvoicesRequest {
-  type: InvoiceType;
-  limit?: number;
-}
-
-export interface InvoiceInfo {
-  id?: string;
-  userId: string;
-  billToEmail?: string;
+  createdBy?: string;
+  payerId?: string;
   items?: Item;
   messageToClient?: string;
   termAndCondition?: string;
   referenceNumber?: string;
-  memoToSelf?: string;
-  fileUrl?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  invoiceNumber?: string;
-  status: InvoiceStatusType;
-}
-
-export interface UpdateInvoiceRequest {
-  billToEmail?: string;
-  email?: string;
-  items?: Item;
-  messageToClient?: string;
-  termAndCondition?: string;
-  referenceNumber?: string;
-  memoToSelf?: string;
-  fileUrl?: string;
+  fileURLs?: string[];
   status?: InvoiceStatusType;
   invoiceNumber?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }
+
+export interface BaseOwnerInvoice extends BaseInvoice {
+  memoToSelf?: string;
+}
+
+export interface Invoice extends BaseInvoice {
+  invoiceId: string;
+}
+
+export interface CreateInvoiceRequest extends BaseOwnerInvoice {}
+
+export interface GetInvoiceRequest {
+  invoiceId: string;
+  userId: string;
+  userEmail: string;
+}
+
+export interface UpdateInvoiceRequest extends BaseOwnerInvoice {}
+
+export interface DeleteInvoiceRequest {
+  createdBy: string;
+  invoiceId: string;
+}
+
+export interface GetPayInvoiceRequest extends BaseInvoice {}
 
 export interface PayInvoiceRequest {
-  uid: string;
-  id: string;
-}
-
-export interface GetPayInvoiceRequest {
-  uid: string;
-  id: string;
+  invoiceId: string;
+  payerId: string;
+  payerEmail: string;
+  createdAt: number;
 }
 
 export interface Item {
@@ -76,4 +87,10 @@ export interface Item {
   line: number;
   title: string;
   amount: number;
+}
+
+export interface ListInvoicesRequest {
+  userId: string;
+  key: InvoiceUser;
+  limit?: number;
 }

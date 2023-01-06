@@ -3,14 +3,6 @@ export type TransactionType = 'deposit' | 'withdraw';
 
 export type TransactionAction = 'create' | 'update';
 
-export const TransactionActionMap: {
-  create: TransactionAction;
-  update: TransactionAction;
-} = {
-  create: 'create',
-  update: 'update',
-};
-
 export const TransactionTypeMap: {
   deposit: TransactionType;
   withdraw: TransactionType;
@@ -66,6 +58,8 @@ export interface DWTransaction extends BaseTransaction, BankInfos {
 }
 
 export interface BaseTransaction {
+  transactionId?: string;
+  transactionType: string;
   createdBy: string;
   status: TransactionStatusType;
   createdAt: number;
@@ -87,7 +81,7 @@ export interface TransactionLog {
 export interface TransactionRequest extends BankInfos, TransactionLog {}
 
 export interface TransactionMetadata {
-  transactionType: TransactionType;
+  // transactionType: TransactionType;
   transactionId: string;
 }
 export interface UpdateTransactionRequest
@@ -96,19 +90,11 @@ export interface UpdateTransactionRequest
 
 export interface AdminUpdateTransactionRequest
   extends UpdateTransactionRequest {
-  transactionOwner: string;
   status: TransactionStatusType;
 }
 
 export interface ListTransactionRequest {
   owner: string;
-  transactionType: TransactionType;
-}
-
-export interface TransactionAdminLog {
-  transactionId: string;
-  transactionType: TransactionType;
-  transactionOwner: string;
-  transactionAction: TransactionAction;
-  createdAt: number;
+  limit?: number;
+  transactionType?: TransactionType;
 }

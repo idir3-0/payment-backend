@@ -1,4 +1,4 @@
-import { body, check, query, param } from 'express-validator';
+import { body, check, param } from 'express-validator';
 import { Banks } from './models';
 
 const note = check('note').default('').notEmpty().trim().escape();
@@ -6,7 +6,7 @@ const fileURLs = check('fileURLs.*').default([]).trim().escape();
 const transactionType = body('transactionType')
   .isIn(['deposit', 'withdraw'])
   .notEmpty();
-const transactionId = body('transactionId').notEmpty().isUUID();
+const transactionId = param('transactionId').notEmpty().trim().escape();
 
 export const transactionValidation = () => [
   check('amount').isNumeric().notEmpty(),
@@ -15,20 +15,13 @@ export const transactionValidation = () => [
   note,
 ];
 
-export const listValidation = () => [transactionType];
+export const listValidation = () => [];
 
-export const updateValidation = () => [
-  transactionId,
-  transactionType,
-  fileURLs,
-  note,
-];
+export const updateValidation = () => [transactionId, fileURLs, note];
 
 export const adminUpdateValidation = () => [
   transactionId,
-  transactionType,
   fileURLs,
   note,
-  check('transactionOwner').notEmpty().trim().escape(),
   check('status').isIn(['processing', 'rejected', 'accepted']).notEmpty(),
 ];

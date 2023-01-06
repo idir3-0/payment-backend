@@ -3,6 +3,8 @@ import { createTestUser, loginTestUser } from './test';
 import {
   AdminValidateSetupAccountRequest,
   CreateTestUserRequest,
+  GetBusinessRequest,
+  GetUserProfileRequest,
   LoginTestUserRequest,
   SetupBusinessRequest,
   SetupUserAccountRequest,
@@ -20,40 +22,42 @@ import {
 } from './controllers';
 import { responseHandler } from 'src/utils/response';
 import { errorHandler } from './errors';
+import { Timestamp } from 'firebase/firestore';
 
 export const setupUserAccountHandler = async (req: Request, res: Response) => {
+  const createdAt = Timestamp.now().seconds;
   const setupUserAccountRequest: SetupUserAccountRequest = {
-    userProfile: {
-      address: req.body.userProfile.address,
-      firstName: req.body.userProfile.firstName,
-      lastName: req.body.userProfile.lastName,
-      nationalIdFile: req.body.userProfile.lastName,
-    },
+    userId: req.user.user_id,
+    address: req.body.address,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
+    nationalIdFile: req.body.lastName,
+    createdAt,
+    updatedAt: createdAt,
   };
-  const { error, data } = await setupUserAccount(
-    setupUserAccountRequest,
-    req.user.user_id,
-  );
+  const { error, data } = await setupUserAccount(setupUserAccountRequest);
   responseHandler(res, data, 201, error, errorHandler);
 };
 
 export const getUserProfileHandler = async (req: Request, res: Response) => {
-  const { error, data } = await getUserProfile(req.user.user_id);
+  const getUserProfileRequest: GetUserProfileRequest = {
+    userId: req.user.user_id,
+  };
+  const { error, data } = await getUserProfile(getUserProfileRequest);
   responseHandler(res, data, 200, error, errorHandler);
 };
 
 export const updateProfileHandler = async (req: Request, res: Response) => {
   const updateProfileRequest: UpdateProfileRequest = {
+    userId: req.user.user_id,
     isActive: req.user?.acv,
-    address: req.body.userProfile.address,
-    firstName: req.body.userProfile.firstName,
-    lastName: req.body.userProfile.lastName,
-    nationalIdFile: req.body.userProfile.nationalIdFile,
+    address: req.body.address,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
+    nationalIdFile: req.body.nationalIdFile,
+    updatedAt: Timestamp.now().seconds,
   };
-  const { error, data } = await updateProfile(
-    updateProfileRequest,
-    req.user.user_id,
-  );
+  const { error, data } = await updateProfile(updateProfileRequest);
   responseHandler(res, data, 200, error, errorHandler);
 };
 
@@ -61,44 +65,46 @@ export const setupBusinessAccountHandler = async (
   req: Request,
   res: Response,
 ) => {
+  const createdAt = Timestamp.now().seconds;
+
   const setupBusinessRequest: SetupBusinessRequest = {
-    businessProfile: {
-      address: req.body.businessProfile.address,
-      firstName: req.body.businessProfile.firstName,
-      lastName: req.body.businessProfile.lastName,
-      description: req.body.businessProfile.description,
-      displayName: req.body.businessProfile.displayName,
-      logo: req.body.businessProfile.logo,
-      businessLegal: req.body.businessProfile.businessLegal,
-    },
+    userId: req.user.user_id,
+    address: req.body.address,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
+    description: req.body.description,
+    displayName: req.body.displayName,
+    logo: req.body.logo,
+    businessLegal: req.body.businessLegal,
+    createdAt,
+    updatedAt: createdAt,
   };
-  const { error, data } = await setupBusinessAccount(
-    setupBusinessRequest,
-    req.user.user_id,
-  );
+  const { error, data } = await setupBusinessAccount(setupBusinessRequest);
   responseHandler(res, data, 204, error, errorHandler);
 };
 
 export const getBusinessHandler = async (req: Request, res: Response) => {
-  const { error, data } = await getBusiness(req.user.user_id);
+  const getBusinessRequest: GetBusinessRequest = {
+    userId: req.user.user_id,
+  };
+  const { error, data } = await getBusiness(getBusinessRequest);
   responseHandler(res, data, 200, error, errorHandler);
 };
 
 export const updateBusinessHandler = async (req: Request, res: Response) => {
   const updateBusinessRequest: UpdateBusinessRequest = {
+    userId: req.user.user_id,
     isActive: req.user?.acv,
-    address: req.body.businessProfile.address,
-    firstName: req.body.businessProfile.firstName,
-    lastName: req.body.businessProfile.lastName,
-    description: req.body.businessProfile.description,
-    displayName: req.body.businessProfile.displayName,
-    logo: req.body.businessProfile.logo,
-    businessLegal: req.body.businessProfile.businessLegal,
+    address: req.body.address,
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
+    description: req.body.description,
+    displayName: req.body.displayName,
+    logo: req.body.logo,
+    businessLegal: req.body.businessLegal,
+    updatedAt: Timestamp.now().seconds,
   };
-  const { error, data } = await updateBusiness(
-    updateBusinessRequest,
-    req.user.user_id,
-  );
+  const { error, data } = await updateBusiness(updateBusinessRequest);
   responseHandler(res, data, 200, error, errorHandler);
 };
 
@@ -107,8 +113,8 @@ export const adminValidateAccountHandler = async (
   res: Response,
 ) => {
   const adminValidateSetupAccountRequest: AdminValidateSetupAccountRequest = {
+    userId: req.body.uid,
     status: req.body.status,
-    uid: req.body.uid,
     content: req.body.content,
   };
   const { error, data } = await adminValidateAccount(

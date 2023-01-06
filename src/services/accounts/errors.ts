@@ -4,13 +4,9 @@ export const ERROR_INVALID_USER_DATA = 'Invalid user data';
 
 export const errorToStatus = (err: string) => {
   switch (err) {
-    // case ERROR_ACCOUNT_ALREADY_EXIST:
-    // case ERROR_INVOICE_CAN_NOT_UPDATE:
-    // case ERROR_INVOICE_CAN_NOT_DELETE:
+    case ERROR_ACCOUNT_ALREADY_SETUP:
     case ERROR_INVALID_USER_DATA:
       return { status: 400, error: err };
-    case ERROR_ACCOUNT_ALREADY_SETUP:
-      return { status: 401, error: err };
     case ERROR_ACCOUNT_NOT_EXIST:
       return { status: 404, error: err };
     default:

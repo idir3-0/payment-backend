@@ -1,5 +1,5 @@
 import { check, query, param } from 'express-validator';
-import { InvoiceStatus } from './models';
+import { InvoiceStatusMap, InvoiceUserMap } from './models';
 
 export const createInvoiceValidation = () => [
   check('billToEmail').isEmail().normalizeEmail(),
@@ -11,16 +11,18 @@ export const createInvoiceValidation = () => [
   check('termAndCondition').notEmpty().trim().escape(),
   check('referenceNumber').notEmpty().trim().escape(),
   check('memoToSelf').notEmpty().trim().escape(),
-  check('fileUrl').notEmpty().trim().escape(),
+  check('fileURLs.*').default([]).trim().escape(),
   check('invoiceNumber').notEmpty().trim().escape(),
 ];
 
 export const listInvoicesValidation = () => [
-  query('type').isIn(['created', 'paied']),
+  query('key')
+    .default(InvoiceUserMap.createdBy)
+    .isIn([InvoiceUserMap.createdBy, InvoiceUserMap.payerId]),
 ];
 
 export const updateInvoiceValidation = () => [
-  param('id').isUUID(),
+  param('invoiceId').notEmpty().trim().escape(),
   check('billToEmail').isEmail().normalizeEmail(),
   check('items.*.id').trim().escape(),
   check('items.*.line').isNumeric(),
@@ -32,19 +34,13 @@ export const updateInvoiceValidation = () => [
   check('memoToSelf').trim().escape(),
   check('fileUrl').trim().escape(),
   check('invoiceNumber').trim().escape(),
-  check('status').isIn(Object.values(InvoiceStatus)),
+  check('status').isIn(Object.values(InvoiceStatusMap)),
 ];
 
-export const deleteInvoiceValidation = () => [param('id').isUUID()];
+export const deleteInvoiceValidation = () => [param('invoiceId').notEmpty()];
 
-export const getInvoiceValidation = () => [param('id').isUUID()];
+export const getInvoiceValidation = () => [param('invoiceId').notEmpty()];
 
 export const payInvoiceValidation = () => [
-  param('uid').notEmpty(),
-  param('id').isUUID().notEmpty(),
-];
-
-export const getPayInvoiceValidation = () => [
-  param('uid').notEmpty(),
-  param('id').isUUID().notEmpty(),
+  param('invoiceId').notEmpty().notEmpty(),
 ];

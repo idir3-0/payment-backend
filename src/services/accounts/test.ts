@@ -1,11 +1,8 @@
-import { collection } from 'firebase/firestore';
-import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import {
   newUserWithEmailAndPassword,
   userSignInWithEmailAndPassword,
 } from 'src/adapters/firebase/users';
 import { CreateTestUserRequest, LoginTestUserRequest } from './models';
-import { auth } from 'firebase-admin';
 
 export const createTestUser = async (
   createTestUserRequest: CreateTestUserRequest,
