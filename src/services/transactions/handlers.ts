@@ -5,64 +5,88 @@ import {
   adminUpdateTransaction,
   withdraw,
   listUserTransactions,
+  getTransaction,
 } from './controllers';
 import {
-  TransactionRequest,
-  UpdateTransactionRequest,
+  CreateTransactionRequest,
+  UserUpdateTransactionRequest,
   AdminUpdateTransactionRequest,
   ListTransactionRequest,
   TransactionType,
   TransactionStatusMap,
-} from './models';
+  CreateTransactionParams,
+  UserUpdateTransactionParams,
+  ListTransactionParams,
+  AdminUpdateTransactionParams,
+  GetTransactionRequest,
+  GetTransactionParams,
+} from 'payment-types';
 import { errorHandler } from './errors';
 import { Timestamp } from 'firebase/firestore';
+import { responseHandler } from 'src/utils/response';
 
 export const depositHandler = async (req: Request, res: Response) => {
-  const depositRequest: TransactionRequest = {
+  const createTransactionRequest: CreateTransactionRequest = {
     amount: req.body.amount,
     bank: req.body.bank,
-    createdBy: req.user.user_id,
     note: req.body.note,
     fileURLs: req.body.fileURLs,
-    status: TransactionStatusMap.requested,
-    createdAt: Timestamp.now().seconds,
   };
 
-  const { data, error } = await deposit(depositRequest);
-  return responseHandler(res, data, 201, error);
+  const createTransactionParams: CreateTransactionParams = {
+    ...createTransactionRequest,
+    _transactionType: 'deposit',
+    _createdBy: req.user.user_id,
+    _status: TransactionStatusMap.requested,
+    _createdAt: Timestamp.now().seconds,
+  };
+
+  const { data, error } = await deposit(createTransactionParams);
+  return responseHandler(res, data, 201, error, errorHandler);
 };
 
 export const withdrawHandler = async (req: Request, res: Response) => {
-  const withdrawRequest: TransactionRequest = {
+  const createTransactionRequest: CreateTransactionRequest = {
     amount: req.body.amount,
     bank: req.body.bank,
-    createdBy: req.user.user_id,
     note: req.body.note,
     fileURLs: req.body.fileURLs,
-    status: TransactionStatusMap.requested,
-    createdAt: Timestamp.now().seconds,
   };
-  const { data, error } = await withdraw(withdrawRequest);
-  return responseHandler(res, data, 201, error);
+
+  const createTransactionParams: CreateTransactionParams = {
+    ...createTransactionRequest,
+    _transactionType: 'withdraw',
+    _createdBy: req.user.user_id,
+    _status: TransactionStatusMap.requested,
+    _createdAt: Timestamp.now().seconds,
+  };
+  const { data, error } = await withdraw(createTransactionParams);
+  return responseHandler(res, data, 201, error, errorHandler);
 };
 
 export const userUpdateTransactionHandler = async (
   req: Request,
   res: Response,
 ) => {
-  const userUpdateTransactionRequest: UpdateTransactionRequest = {
-    createdBy: req.user.user_id,
+  const userUpdateTransactionRequest: UserUpdateTransactionRequest = {
     transactionId: req.params.transactionId,
     note: req.body.note,
     fileURLs: req.body.fileURLs,
-    status: TransactionStatusMap.processing,
-    createdAt: Timestamp.now().seconds,
+    amount: req.body.amount,
+    bank: req.body.bank,
+  };
+
+  const userUpdateTransactionParams: UserUpdateTransactionParams = {
+    ...userUpdateTransactionRequest,
+    _createdBy: req.user.user_id,
+    _status: TransactionStatusMap.processing,
+    _createdAt: Timestamp.now().seconds,
   };
 
   const { data, error } = await userUpdateTransaction(
-    userUpdateTransactionRequest,
+    userUpdateTransactionParams,
   );
-  return responseHandler(res, data, 204, error);
+  return responseHandler(res, data, 204, error, errorHandler);
 };
 
 export const adminUpdateTransactionHandler = async (
@@ -70,16 +94,19 @@ export const adminUpdateTransactionHandler = async (
   res: Response,
 ) => {
   const adminUpdateTransactionRequest: AdminUpdateTransactionRequest = {
-    createdBy: req.user.user_id,
     transactionId: req.params.transactionId,
     status: req.body.status,
     fileURLs: req.body.fileURLs,
     note: req.body.note,
-    createdAt: Timestamp.now().seconds,
+    _status: req.body.status,
+    _createdBy: req.user.user_id,
+    _createdAt: Timestamp.now().seconds,
   };
 
-  const { error } = await adminUpdateTransaction(adminUpdateTransactionRequest);
-  return responseHandler(res, {}, 204, error);
+  const { error } = await adminUpdateTransaction(
+    adminUpdateTransactionRequest as AdminUpdateTransactionParams,
+  );
+  return responseHandler(res, {}, 204, error, errorHandler);
 };
 
 export const listUserTransactionsHandler = async (
@@ -87,30 +114,29 @@ export const listUserTransactionsHandler = async (
   res: Response,
 ) => {
   const listTransactionRequest: ListTransactionRequest = {
-    owner: req.user.user_id,
     transactionType: req.query.transactionType as TransactionType,
     limit: 10,
   };
 
-  const { data, error } = await listUserTransactions(listTransactionRequest);
-  return responseHandler(res, data, 200, error);
+  const listTransactionParams: ListTransactionParams = {
+    ...listTransactionRequest,
+    _userId: req.user.user_id,
+  };
+
+  const { data, error } = await listUserTransactions(listTransactionParams);
+  return responseHandler(res, data, 200, error, errorHandler);
 };
 
-const responseHandler = (
-  res: Response,
-  data: any,
-  successStatus: number,
-  err: string,
-) => {
-  if (err) {
-    const { status, error } = errorHandler(err);
-    return res.status(status).json({
-      status: false,
-      error,
-    });
-  }
-  return res.status(successStatus).json({
-    status: true,
-    result: data,
-  });
+export const getTransactionHandler = async (req: Request, res: Response) => {
+  const getTransactionRequest: GetTransactionRequest = {
+    transactionId: req.params.transactionId,
+  };
+
+  const getTransactionParams: GetTransactionParams = {
+    ...getTransactionRequest,
+    _userId: req.user.user_id,
+  };
+
+  const { data, error } = await getTransaction(getTransactionParams);
+  return responseHandler(res, data, 200, error, errorHandler);
 };

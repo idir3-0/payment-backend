@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import {
   arrayUnion,
   Transaction,
@@ -11,21 +10,21 @@ import {
   getDocs,
   orderBy,
   where,
+  getDoc,
 } from 'firebase/firestore';
 import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import {
-  TransactionRequest,
-  UpdateTransactionRequest,
-  AdminUpdateTransactionRequest,
-  TransactionLog,
-  TransactionType,
   TransactionStateMap,
   TransactionStatusMap,
-  ListTransactionRequest,
   DWTransaction,
   TransactionTypeMap,
-} from './models';
-import { getCurrentDate } from 'src/utils/date';
+  CreateTransactionParams,
+  UserUpdateTransactionParams,
+  ListTransactionParams,
+  AdminUpdateTransactionParams,
+  TransactionLogParams,
+  GetTransactionParams,
+} from 'payment-types';
 import {
   ERROR_TRANSACTION_ALREADY_IN_REVIEW,
   ERROR_TRANSACTION_CAN_NOT_UPDATE,
@@ -36,23 +35,33 @@ import {
 import { newNotificationsTx } from '../notifications/controllers';
 
 const TRANSACTIONS_COLLECTION_NAME = 'transactions';
-const TRANSACTIONS_LOG_COLLECTION_NAME = 'transactions-logs';
 
-export const deposit = async (transactionRequest: TransactionRequest) => {
-  return await baseTransaction(TransactionTypeMap.deposit, transactionRequest);
+export const deposit = async (
+  createTransactionParams: CreateTransactionParams,
+): Promise<{ data?: Object; error?: Error }> => {
+  return await baseTransaction(createTransactionParams);
 };
 
-export const withdraw = async (transactionRequest: TransactionRequest) => {
-  return baseTransaction(TransactionTypeMap.withdraw, transactionRequest);
+export const withdraw = async (
+  createTransactionParams: CreateTransactionParams,
+): Promise<{ data?: Object; error?: Error }> => {
+  return baseTransaction(createTransactionParams);
 };
 
 const baseTransaction = async (
-  transactionType: TransactionType,
-  transactionRequest: TransactionRequest,
-) => {
+  createTransactionParams: CreateTransactionParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
-    const { amount, bank, createdBy, status, fileURLs, note, createdAt } =
-      transactionRequest;
+    const {
+      amount,
+      bank,
+      fileURLs,
+      note,
+      _createdBy,
+      _status,
+      _createdAt,
+      _transactionType,
+    } = createTransactionParams;
 
     const d = collection(firebaseDatabase, TRANSACTIONS_COLLECTION_NAME);
 
@@ -60,8 +69,8 @@ const baseTransaction = async (
     const q = query(
       d,
       where('status', '==', TransactionStatusMap.processing),
-      where('transactionType', '==', transactionType),
-      where('createdBy', '==', createdBy),
+      where('_transactionType', '==', _transactionType),
+      where('_createdBy', '==', _createdBy),
     );
     const transactionSnap = await getDocs(q);
     // TODO: improve
@@ -70,31 +79,31 @@ const baseTransaction = async (
       throw ERROR_TRANSACTION_ALREADY_IN_REVIEW;
     }
 
-    if (transactionType === TransactionTypeMap.withdraw) {
+    if (_transactionType === TransactionTypeMap.withdraw) {
       // TODO: check user balance when withdraw
     }
 
     const transaction: DWTransaction = {
       amount,
       bank,
-      createdAt,
-      status: TransactionStatusMap.processing,
-      createdBy,
-      transactionType,
+      _createdAt,
+      _status: TransactionStatusMap.processing,
+      _createdBy,
+      _transactionType,
       logs: [
         {
           fileURLs,
           note,
-          createdAt,
-          createdBy,
-          status,
+          _createdAt,
+          _createdBy,
+          _status,
         },
         {
           fileURLs: [],
           note: 'طلبك قيد المراجعة',
-          createdAt,
-          createdBy: 'system',
-          status: TransactionStatusMap.processing,
+          _createdAt,
+          _createdBy: 'system',
+          _status: TransactionStatusMap.processing,
         },
       ],
     };
@@ -107,11 +116,19 @@ const baseTransaction = async (
 };
 
 export const userUpdateTransaction = async (
-  updateTransactionRequest: UpdateTransactionRequest,
-) => {
+  userUpdateTransactionParams: UserUpdateTransactionParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
-    const { transactionId, fileURLs, note, createdBy, status, createdAt } =
-      updateTransactionRequest;
+    const {
+      transactionId,
+      fileURLs,
+      amount,
+      bank,
+      note,
+      _createdBy,
+      _status,
+      _createdAt,
+    } = userUpdateTransactionParams;
 
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
       const d1 = doc(
@@ -126,28 +143,30 @@ export const userUpdateTransaction = async (
         throw ERROR_TRANSACTION_NOT_EXIST;
       }
 
-      if (transaction.createdBy !== createdBy) {
+      if (transaction._createdBy !== _createdBy) {
         throw ERROR_TRANSACTION_NOT_EXIST;
       }
 
       if (
-        transaction.status === TransactionStatusMap.funded ||
-        transaction.status === TransactionStatusMap.accepted
+        transaction._status === TransactionStatusMap.funded ||
+        transaction._status === TransactionStatusMap.accepted
       ) {
         throw ERROR_TRANSACTION_PROCESSED;
       }
 
-      const log: TransactionLog = {
+      const log: TransactionLogParams = {
         note,
         fileURLs,
-        status,
-        createdBy,
-        createdAt,
+        _status,
+        _createdBy,
+        _createdAt,
       };
 
       tx.set(
         d1,
         {
+          amount,
+          bank,
           logs: arrayUnion(log),
         },
         { merge: true },
@@ -162,17 +181,17 @@ export const userUpdateTransaction = async (
 export const adminFundBalanceAccount = async () => {};
 
 export const listUserTransactions = async (
-  listTransactionRequest: ListTransactionRequest,
-) => {
+  listTransactionParams: ListTransactionParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
-    const { owner, transactionType, limit: lim } = listTransactionRequest;
+    const { _userId, transactionType, limit: lim } = listTransactionParams;
     const col = collection(firebaseDatabase, TRANSACTIONS_COLLECTION_NAME);
 
     // TODO: add paggination
     const q = query(
       col,
-      orderBy('createdAt', 'desc'),
-      where('createdBy', '==', owner),
+      orderBy('_createdAt', 'desc'),
+      where('_createdBy', '==', _userId),
       limit(lim),
     );
     const transactionsSnap = await getDocs(q);
@@ -190,12 +209,47 @@ export const listUserTransactions = async (
   }
 };
 
-export const adminUpdateTransaction = async (
-  adminUpdateTransactionRequest: AdminUpdateTransactionRequest,
-) => {
+export const getTransaction = async (
+  getTransactionParams: GetTransactionParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
-    const { transactionId, status, fileURLs, note, createdBy, createdAt } =
-      adminUpdateTransactionRequest;
+    const { _userId, transactionId } = getTransactionParams;
+
+    const d1 = doc(
+      firebaseDatabase,
+      TRANSACTIONS_COLLECTION_NAME,
+      transactionId,
+    );
+
+    const transactionSnapshot = await getDoc(d1);
+    const transaction = transactionSnapshot.data() as DWTransaction;
+    if (!transaction) {
+      throw ERROR_TRANSACTION_NOT_EXIST;
+    }
+
+    if (transaction._createdBy !== _userId) {
+      throw ERROR_TRANSACTION_NOT_EXIST;
+    }
+
+    return { data: { transaction } };
+  } catch (error) {
+    return { error };
+  }
+};
+
+export const adminUpdateTransaction = async (
+  adminUpdateTransactionParams: AdminUpdateTransactionParams,
+): Promise<{ data?: Object; error?: Error }> => {
+  try {
+    const {
+      transactionId,
+      status,
+      fileURLs,
+      note,
+      _createdBy,
+      _createdAt,
+      _status,
+    } = adminUpdateTransactionParams;
 
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
       const d1 = doc(
@@ -212,30 +266,30 @@ export const adminUpdateTransaction = async (
       }
 
       if (
-        transaction.status === TransactionStatusMap.accepted ||
-        transaction.status === TransactionStatusMap.funded
+        transaction._status === TransactionStatusMap.accepted ||
+        transaction._status === TransactionStatusMap.funded
       ) {
         throw ERROR_TRANSACTION_CAN_NOT_UPDATE;
       }
 
       if (
-        !(TransactionStateMap[transaction.status] as string[]).includes(status)
+        !(TransactionStateMap[transaction._status] as string[]).includes(status)
       ) {
         throw ERROR_TRANSACTION_INVALID_STATUS;
       }
 
-      const log: TransactionLog = {
+      const log: TransactionLogParams = {
         fileURLs,
         note,
-        createdBy,
-        status,
-        createdAt,
+        _createdBy,
+        _status,
+        _createdAt,
       };
 
       await tx.set(
         d1,
         {
-          status: adminUpdateTransactionRequest.status,
+          status: _status,
           logs: arrayUnion(log),
         },
         { merge: true },
@@ -243,7 +297,7 @@ export const adminUpdateTransaction = async (
 
       newNotificationsTx(tx, {
         collection: TRANSACTIONS_COLLECTION_NAME,
-        userIdinBox: transaction.createdBy,
+        userIdinBox: transaction._createdBy,
         path: [],
         action: status,
         refId: transactionId,

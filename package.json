@@ -11,6 +11,7 @@
     "dev": "concurrently -k \"tsc -w\" \"nodemon --on-change-only dist/server.js\""
   },
   "dependencies": {
+    "payment-types": "git+ssh://git@github.com:idir3-0/payment-types.git",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "express-validator": "^6.14.2",

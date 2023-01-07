@@ -9,21 +9,20 @@ import {
 } from 'firebase/firestore';
 import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import {
-  ListNotificationRequest,
-  CreateNotificationReauest,
-  newNotification,
+  ListNotificationParams,
+  CreateNotificationParams,
   Notification,
-} from './models';
+} from 'payment-types';
 import { NOTIFICATIONS_KEY, NOTIFICATION_DELETE_DELAY } from './constants';
 
 export const newNotificationsTx = async (
   tx: Transaction,
-  createNotificationReauest: CreateNotificationReauest,
+  createNotificationParams: CreateNotificationParams,
 ) => {
-  const d = getNotificationDoc(createNotificationReauest.userIdinBox);
+  const d = getNotificationDoc(createNotificationParams.userIdinBox);
 
   const notification: Notification = {
-    notificationJSON: newNotification(createNotificationReauest),
+    notificationJSON: newNotification(createNotificationParams),
     readAt: 0,
     createdAt: Timestamp.now().seconds,
   };
@@ -37,12 +36,12 @@ export const newNotificationsTx = async (
 };
 
 export const listNotifications = async (
-  listNotificationRequest: ListNotificationRequest,
-) => {
+  listNotificationParams: ListNotificationParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
     // TODO: improve
-    const { userId, limit } = listNotificationRequest;
-    const d = getNotificationDoc(userId);
+    const { _userId, limit } = listNotificationParams;
+    const d = getNotificationDoc(_userId);
     const notifSnap = await getDoc(d);
     const notifications = notifSnap.data();
     if (!notifications) {
@@ -54,7 +53,9 @@ export const listNotifications = async (
   }
 };
 
-export const readNotifications = async (userId: string) => {
+export const readNotifications = async (
+  userId: string,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
     const updatedNotifications: Notification[] = [];
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
@@ -93,3 +94,7 @@ export const readNotifications = async (userId: string) => {
 
 const getNotificationDoc = (userId: string): DocumentReference =>
   doc(firebaseDatabase, NOTIFICATIONS_KEY, userId);
+
+export const newNotification = (
+  notification: CreateNotificationParams,
+): string => JSON.stringify(notification);

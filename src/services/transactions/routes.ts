@@ -5,9 +5,10 @@ import {
   adminUpdateTransactionHandler,
   withdrawHandler,
   listUserTransactionsHandler,
+  getTransactionHandler,
 } from './handlers';
 import {
-  transactionValidation,
+  createTransactionValidation,
   listValidation,
   updateValidation,
   adminUpdateValidation,
@@ -19,50 +20,50 @@ import { isAdminMiddelware } from 'src/middleware/isAdmin';
 import { isNotAdminMiddelware } from 'src/middleware/isNotAdmin';
 
 export const initTransactionRoutes = (app: Express) => {
-  const baseRouter = express.Router();
-  const adminRouter = express.Router();
-  const notAdminRouter = express.Router();
+  const router = express.Router();
 
-  baseRouter.use(authorizationMiddelware);
-  baseRouter.use(isAccountActiveMiddelware);
+  router.use(authorizationMiddelware);
+  router.use(isAccountActiveMiddelware);
 
-  adminRouter.use(baseRouter);
-  notAdminRouter.use(baseRouter);
-
-  adminRouter.use(isAdminMiddelware);
-  notAdminRouter.use(isNotAdminMiddelware);
-
-  // Admin
-  adminRouter.put(
-    '/validate/:transactionId',
+  router.put(
+    '/admin/validate/:transactionId',
+    isAdminMiddelware,
     ...adminUpdateValidation(),
     validatorMiddelware,
     adminUpdateTransactionHandler,
   );
 
-  // User & Admin
-  notAdminRouter.post(
+  router.post(
     '/deposit',
-    ...transactionValidation(),
+    isNotAdminMiddelware,
+    ...createTransactionValidation(),
     validatorMiddelware,
     depositHandler,
   );
 
-  notAdminRouter.post(
+  router.post(
     '/withdraw',
-    ...transactionValidation(),
+    isNotAdminMiddelware,
+    ...createTransactionValidation(),
     validatorMiddelware,
     withdrawHandler,
   );
 
-  notAdminRouter.get(
+  router.get(
     '/',
     ...listValidation(),
     validatorMiddelware,
     listUserTransactionsHandler,
   );
 
-  notAdminRouter.put(
+  router.get(
+    '/:transactionId',
+    ...listValidation(),
+    validatorMiddelware,
+    getTransactionHandler,
+  );
+
+  router.put(
     '/:transactionId',
     ...updateValidation(),
     validatorMiddelware,
@@ -70,6 +71,5 @@ export const initTransactionRoutes = (app: Express) => {
   );
 
   // Setup App
-  app.use('/transactions/admin', adminRouter);
-  app.use('/transactions', notAdminRouter);
+  app.use('/transactions', router);
 };

@@ -11,22 +11,20 @@ import {
   addDoc,
   where,
   setDoc,
-  documentId,
   deleteDoc,
 } from 'firebase/firestore';
 import { firebaseDatabase } from 'src/adapters/firebase/firebase';
 import {
-  CreateInvoiceRequest,
-  ListInvoicesRequest,
-  GetInvoiceRequest,
-  BaseInvoice,
-  UpdateInvoiceRequest,
+  Invoice,
   InvoiceStatusMap,
-  PayInvoiceRequest,
-  DeleteInvoiceRequest,
   InvoiceStatusState,
-  BaseOwnerInvoice,
-} from './models';
+  CreateInvoiceParams,
+  GetInvoiceParams,
+  UpdateInvoiceParams,
+  DeleteInvoiceParams,
+  PayInvoiceParams,
+  ListInvoicesParams,
+} from 'payment-types';
 import {
   ERROR_INVOICE_NOT_EXIST,
   ERROR_INVOICE_CAN_NOT_UPDATE,
@@ -39,12 +37,11 @@ import {
 const INVOICE_COLLECTION_NAME = 'invoices';
 
 export const createInvoice = async (
-  createInvoiceRequest: CreateInvoiceRequest,
-) => {
+  createInvoiceParams: CreateInvoiceParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
-    console.log(createInvoiceRequest);
     const col = collection(firebaseDatabase, INVOICE_COLLECTION_NAME);
-    const invoice = await addDoc(col, createInvoiceRequest);
+    const invoice = await addDoc(col, createInvoiceParams);
 
     return {
       data: { id: invoice.id },
@@ -56,21 +53,23 @@ export const createInvoice = async (
 };
 
 export const listInvoices = async (
-  listInvoicesRequest: ListInvoicesRequest,
-) => {
+  listInvoicesParams: ListInvoicesParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
-    const { userId, key } = listInvoicesRequest;
+    console.log(listInvoicesParams);
+    const { _userId, key } = listInvoicesParams;
     const col = collection(firebaseDatabase, INVOICE_COLLECTION_NAME);
 
     const q = query(
       col,
-      orderBy('createdAt'),
-      where(key, '==', userId),
+      orderBy('_createdAt'),
+      where(key, '==', _userId),
       limit(10),
     );
     const invoicesSnap = await getDocs(q);
     const invoices = [];
     invoicesSnap.forEach((inv) => {
+      console.log(11111111);
       const invoice = {
         id: inv.id,
         ...inv.data(),
@@ -84,8 +83,8 @@ export const listInvoices = async (
 };
 
 export const updateInvoice = async (
-  updateInvoiceRequest: UpdateInvoiceRequest,
-) => {
+  updateInvoiceParams: UpdateInvoiceParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
     const {
       billToEmail,
@@ -94,17 +93,22 @@ export const updateInvoice = async (
       termAndCondition,
       referenceNumber,
       fileURLs,
+      memoToSelf,
       status,
       invoiceNumber,
-      createdAt,
-      updatedAt,
-      invoiceId,
-    } = updateInvoiceRequest;
-
-    const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
+      _invoiceId,
+      _createdBy,
+      _updatedAt,
+    } = updateInvoiceParams;
+    console.log(updateInvoiceParams);
+    const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, _invoiceId);
     const invoiceSnapshot = await getDoc(d);
-    const invoice = invoiceSnapshot.data() as BaseInvoice;
+    const invoice = invoiceSnapshot.data() as Invoice;
     if (!invoice) {
+      throw ERROR_INVOICE_NOT_EXIST;
+    }
+
+    if (_createdBy !== invoice._createdBy) {
       throw ERROR_INVOICE_NOT_EXIST;
     }
 
@@ -132,32 +136,37 @@ export const updateInvoice = async (
         fileURLs: fileURLs || invoice.fileURLs,
         status: status || invoice.status,
         invoiceNumber: invoiceNumber || invoice.invoiceNumber,
-        updatedAt,
+        memoToSelf: memoToSelf || invoice.memoToSelf,
+        updatedAt: _updatedAt,
       },
       { merge: true },
     );
     return { data: {} };
   } catch (error) {
+    console.log(error);
     return { error };
   }
 };
 
 export const deleteInvoice = async (
-  deleteInvoiceRequest: DeleteInvoiceRequest,
-) => {
+  deleteInvoiceParams: DeleteInvoiceParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
-    const { createdBy, invoiceId } = deleteInvoiceRequest;
+    const { _createdBy, invoiceId } = deleteInvoiceParams;
     const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
+    console.log(deleteInvoiceParams);
 
     const invoiceSnapshot = await getDoc(d);
-    const invoice = invoiceSnapshot.data() as BaseOwnerInvoice;
+    const invoice = invoiceSnapshot.data() as Invoice;
 
     if (!invoice) {
       throw ERROR_INVOICE_NOT_EXIST;
     }
 
+    console.log(invoice._createdBy, _createdBy);
+    console.log(invoice.status, InvoiceStatusMap.draft);
     if (
-      invoice.createdBy != createdBy ||
+      invoice._createdBy != _createdBy ||
       invoice.status != InvoiceStatusMap.draft
     ) {
       throw ERROR_INVOICE_DELETE;
@@ -166,25 +175,28 @@ export const deleteInvoice = async (
     await deleteDoc(d);
     return { data: { id: invoiceId } };
   } catch (error) {
+    console.log(error);
     return { error };
   }
 };
 
-export const payInvoice = async (payInvoiceRequest: PayInvoiceRequest) => {
+export const payInvoice = async (
+  payInvoiceParams: PayInvoiceParams,
+): Promise<{ data?: Object; error?: Error }> => {
   try {
-    const { invoiceId, payerEmail, payerId, createdAt } = payInvoiceRequest;
+    const { invoiceId, _payerEmail, _payerId, _createdAt } = payInvoiceParams;
 
     await runTransaction(firebaseDatabase, async (tx: Transaction) => {
       const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
       const invoiceSnapshot = await tx.get(d);
 
-      const invoice = invoiceSnapshot.data() as BaseInvoice;
+      const invoice = invoiceSnapshot.data() as Invoice;
       if (!invoice) {
         throw ERROR_INVOICE_NOT_EXIST;
       }
 
       // TODO: interact with the contract to pay the invoice
-      if (invoice.billToEmail !== payerEmail) {
+      if (invoice.billToEmail !== _payerEmail) {
         throw ERROR_INVOICE_UNAUTH_PAY;
       }
 
@@ -199,9 +211,9 @@ export const payInvoice = async (payInvoiceRequest: PayInvoiceRequest) => {
       tx.set(
         d,
         {
-          payerId,
+          _payerId,
           status: InvoiceStatusMap.paied,
-          updatedAt: createdAt,
+          updatedAt: _createdAt,
         },
         { merge: true },
       );
@@ -212,22 +224,25 @@ export const payInvoice = async (payInvoiceRequest: PayInvoiceRequest) => {
   }
 };
 
-export const getInvoice = async (getInvoiceRequest: GetInvoiceRequest) => {
-  const { invoiceId, userId, userEmail } = getInvoiceRequest;
+export const getInvoice = async (
+  getInvoiceParams: GetInvoiceParams,
+): Promise<{ data?: Object; error?: Error }> => {
+  const { invoiceId, _userId, _userEmail } = getInvoiceParams;
   try {
     const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
     const invoiceSnapshot = await getDoc(d);
-    const invoice = invoiceSnapshot.data() as BaseOwnerInvoice;
+    const invoice = invoiceSnapshot.data() as Invoice;
     if (!invoice) {
       throw ERROR_INVOICE_NOT_EXIST;
     }
 
-    if (userId == invoice.createdBy) {
+    if (_userId == invoice._createdBy) {
       return { data: { invoice } };
     }
 
-    if (userId == invoice.payerId || userEmail == invoice.billToEmail) {
-      return { data: { invoice: invoice as BaseInvoice } };
+    if (_userId == invoice._payerId || _userEmail == invoice.billToEmail) {
+      delete invoice.memoToSelf;
+      return { data: { invoice } };
     }
 
     throw ERROR_INVOICE_NOT_EXIST;

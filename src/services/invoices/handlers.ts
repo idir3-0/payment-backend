@@ -1,4 +1,4 @@
-import { Request, Response, query } from 'express';
+import { Request, Response } from 'express';
 import {
   createInvoice,
   listInvoices,
@@ -8,66 +8,73 @@ import {
   getInvoice,
 } from './controllers';
 import {
+  CreateInvoiceParams,
   CreateInvoiceRequest,
+  DeleteInvoiceParams,
   DeleteInvoiceRequest,
+  GetInvoiceParams,
   GetInvoiceRequest,
   InvoiceStatusMap,
-  InvoiceStatusType,
-  InvoiceType,
   InvoiceUser,
-  Item,
+  ListInvoicesParams,
   ListInvoicesRequest,
+  PayInvoiceParams,
   PayInvoiceRequest,
+  UpdateInvoiceParams,
   UpdateInvoiceRequest,
-} from './models';
+} from 'payment-types';
 import { errorHandler } from './errors';
 import { Timestamp } from 'firebase/firestore';
+import { responseHandler } from 'src/utils/response';
 
 export const createInvoiceHandler = async (req: Request, res: Response) => {
   const createdAt = Timestamp.now().seconds;
 
-  const createInvoiceRequest: CreateInvoiceRequest = {
-    billToEmail: req.body.billToEmail,
-    items: req.body.items,
-    messageToClient: req.body.messageToClient,
-    termAndCondition: req.body.termAndCondition,
-    referenceNumber: req.body.referenceNumber,
-    memoToSelf: req.body.memoToSelf,
-    invoiceNumber: req.body.invoiceNumber,
-    createdBy: req.user.user_id,
-    fileURLs: req.body.fileURLs,
-    status: InvoiceStatusMap.draft as InvoiceStatusType,
-    createdAt,
-    updatedAt: createdAt,
+  const createInvoiceRequest: CreateInvoiceRequest =
+    req.body as CreateInvoiceRequest;
+
+  const createInvoiceParams: CreateInvoiceParams = {
+    ...createInvoiceRequest,
+    _createdBy: req.user.user_id,
+    _createdAt: createdAt,
+    _updatedAt: createdAt,
   };
 
-  const { data, error } = await createInvoice(createInvoiceRequest);
-  return responseHandler(res, data, 201, error);
+  const { data, error } = await createInvoice(createInvoiceParams);
+  return responseHandler(res, data, 201, error, errorHandler);
 };
 
 export const listInvoicesHandler = async (req: Request, res: Response) => {
   let listInvoicesRequest: ListInvoicesRequest = {
     key: req.query.key as InvoiceUser,
-    userId: req.user.user_id,
     limit: 10,
   };
-  const { data, error } = await listInvoices(listInvoicesRequest);
-  return responseHandler(res, data, 200, error);
+
+  let listInvoicesParams: ListInvoicesParams = {
+    ...listInvoicesRequest,
+    _userId: req.user.user_id,
+  };
+  const { data, error } = await listInvoices(listInvoicesParams);
+  return responseHandler(res, data, 200, error, errorHandler);
 };
 
 export const getInvoiceHandler = async (req: Request, res: Response) => {
   let getInvoiceRequest: GetInvoiceRequest = {
     invoiceId: req.params.invoiceId,
-    userId: req.user.user_id,
-    userEmail: req.user.email,
   };
-  const { data, error } = await getInvoice(getInvoiceRequest);
-  return responseHandler(res, data, 200, error);
+
+  let getInvoiceParams: GetInvoiceParams = {
+    ...getInvoiceRequest,
+    _userId: req.user.user_id,
+    _userEmail: req.user.email,
+  };
+
+  const { data, error } = await getInvoice(getInvoiceParams);
+  return responseHandler(res, data, 200, error, errorHandler);
 };
 
 export const updateInvoiceHandler = async (req: Request, res: Response) => {
   const updateInvoiceRequest: UpdateInvoiceRequest = {
-    invoiceId: req.params.invoiceId,
     billToEmail: req.body.billToEmail,
     items: req.body.items,
     messageToClient: req.body.messageToClient,
@@ -77,50 +84,45 @@ export const updateInvoiceHandler = async (req: Request, res: Response) => {
     fileURLs: req.body.fileURLs,
     invoiceNumber: req.body.invoiceNumber,
     status: req.body.status,
-    updatedAt: Timestamp.now().seconds,
-    createdBy: req.user.user_id,
   };
 
-  const { error } = await updateInvoice(updateInvoiceRequest);
-  return responseHandler(res, {}, 204, error);
+  const updateInvoiceParams: UpdateInvoiceParams = {
+    ...updateInvoiceRequest,
+    _invoiceId: req.params.invoiceId,
+    _updatedAt: Timestamp.now().seconds,
+    _createdBy: req.user.user_id,
+  };
+
+  const { error } = await updateInvoice(updateInvoiceParams);
+  return responseHandler(res, {}, 204, error, errorHandler);
 };
 
 export const deleteInvoiceHandler = async (req: Request, res: Response) => {
   const deleteInvoiceRequest: DeleteInvoiceRequest = {
-    createdBy: req.user.user_id,
     invoiceId: req.params.invoiceId,
   };
-  const { data, error } = await deleteInvoice(deleteInvoiceRequest);
-  return responseHandler(res, data, 200, error);
+
+  const deleteInvoiceParams: DeleteInvoiceParams = {
+    ...deleteInvoiceRequest,
+    _createdBy: req.user.user_id,
+  };
+  const { data, error } = await deleteInvoice(deleteInvoiceParams);
+  return responseHandler(res, data, 200, error, errorHandler);
 };
 
 export const payInvoiceHandler = async (req: Request, res: Response) => {
   const payInvoiceRequest: PayInvoiceRequest = {
     invoiceId: req.params.invoiceId,
-    payerId: req.user.user_id,
-    payerEmail: req.user.email,
-    createdAt: Timestamp.now().seconds,
+    address: req.body.address,
   };
 
-  const { data, error } = await payInvoice(payInvoiceRequest);
-  return responseHandler(res, data, 200, error);
-};
+  const payInvoiceParams: PayInvoiceParams = {
+    ...payInvoiceRequest,
+    _payerId: req.user.user_id,
+    _payerEmail: req.user.email,
+    _createdAt: Timestamp.now().seconds,
+  };
 
-const responseHandler = (
-  res: Response,
-  data: any,
-  successStatus: number,
-  err: string,
-) => {
-  if (err) {
-    const { status, error } = errorHandler(err);
-    return res.status(status).json({
-      status: false,
-      error,
-    });
-  }
-  return res.status(successStatus).json({
-    status: true,
-    result: data,
-  });
+  const { data, error } = await payInvoice(payInvoiceParams);
+  return responseHandler(res, data, 200, error, errorHandler);
 };

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import admin from 'firebase-admin';
-import { Roles } from 'src/services/accounts/models';
 
 export const authorizationMiddelware = async (
   req: Request,

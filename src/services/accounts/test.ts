@@ -2,7 +2,7 @@ import {
   newUserWithEmailAndPassword,
   userSignInWithEmailAndPassword,
 } from 'src/adapters/firebase/users';
-import { CreateTestUserRequest, LoginTestUserRequest } from './models';
+import { CreateTestUserRequest, LoginTestUserRequest } from 'payment-types';
 
 export const createTestUser = async (
   createTestUserRequest: CreateTestUserRequest,

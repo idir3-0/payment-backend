@@ -12,6 +12,7 @@ export const errorToStatus = (err: string) => {
     case ERROR_INVOICE_CAN_NOT_UPDATE:
     case ERROR_INVOICE_CAN_NOT_DELETE:
     case ERROR_INVOICE_INVALID_STATUS:
+    case ERROR_INVOICE_DELETE:
       return { status: 400, error: err };
     case ERROR_INVOICE_UNAUTH_PAY:
       return { status: 401, error: err };

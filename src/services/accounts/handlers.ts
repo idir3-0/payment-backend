@@ -1,19 +1,23 @@
 import { Request, Response } from 'express';
 import { createTestUser, loginTestUser } from './test';
 import {
-  AdminValidateSetupAccountRequest,
+  AdminValidateAccountRequest,
   CreateTestUserRequest,
-  GetBusinessRequest,
-  GetUserProfileRequest,
+  GetBusinessParams,
+  GetUserProfileParams,
   LoginTestUserRequest,
-  SetupBusinessRequest,
-  SetupUserAccountRequest,
+  CreateBusinessRequest,
+  CreateUserAccountRequest,
   UpdateBusinessRequest,
   UpdateProfileRequest,
-} from './models';
+  CreateUserAccountParams,
+  UpdateProfileParams,
+  CreateBusinessParams,
+  UpdateBusinessParams,
+} from 'payment-types';
 import {
-  setupUserAccount,
-  setupBusinessAccount,
+  createUserAccount,
+  createBusinessAccount,
   getUserProfile,
   getBusiness,
   adminValidateAccount,
@@ -24,77 +28,88 @@ import { responseHandler } from 'src/utils/response';
 import { errorHandler } from './errors';
 import { Timestamp } from 'firebase/firestore';
 
-export const setupUserAccountHandler = async (req: Request, res: Response) => {
-  const createdAt = Timestamp.now().seconds;
-  const setupUserAccountRequest: SetupUserAccountRequest = {
-    userId: req.user.user_id,
+export const createUserAccountHandler = async (req: Request, res: Response) => {
+  const _createdAt = Timestamp.now().seconds;
+  const createUserAccountRequest: CreateUserAccountRequest = {
     address: req.body.address,
     firstName: req.body.firstName,
     lastName: req.body.lastName,
-    nationalIdFile: req.body.lastName,
-    createdAt,
-    updatedAt: createdAt,
+    nationalIdURL: req.body.nationalIdURL,
   };
-  const { error, data } = await setupUserAccount(setupUserAccountRequest);
+
+  const createUserAccountParams: CreateUserAccountParams = {
+    ...createUserAccountRequest,
+    _userId: req.user.user_id,
+    _createdAt,
+    _updatedAt: _createdAt,
+  };
+
+  const { data, error } = await createUserAccount(createUserAccountParams);
   responseHandler(res, data, 201, error, errorHandler);
 };
 
 export const getUserProfileHandler = async (req: Request, res: Response) => {
-  const getUserProfileRequest: GetUserProfileRequest = {
-    userId: req.user.user_id,
+  const getUserProfileParams: GetUserProfileParams = {
+    _userId: req.user.user_id,
   };
-  const { error, data } = await getUserProfile(getUserProfileRequest);
+  const { error, data } = await getUserProfile(getUserProfileParams);
   responseHandler(res, data, 200, error, errorHandler);
 };
 
 export const updateProfileHandler = async (req: Request, res: Response) => {
   const updateProfileRequest: UpdateProfileRequest = {
-    userId: req.user.user_id,
-    isActive: req.user?.acv,
     address: req.body.address,
     firstName: req.body.firstName,
     lastName: req.body.lastName,
-    nationalIdFile: req.body.nationalIdFile,
-    updatedAt: Timestamp.now().seconds,
+    nationalIdURL: req.body.nationalIdURL,
   };
-  const { error, data } = await updateProfile(updateProfileRequest);
+
+  const updateProfileParams: UpdateProfileParams = {
+    ...updateProfileRequest,
+    _canUpdateLegalFiles: req.user?.acv,
+    _userId: req.user.user_id,
+  };
+  const { error, data } = await updateProfile(updateProfileParams);
   responseHandler(res, data, 200, error, errorHandler);
 };
 
-export const setupBusinessAccountHandler = async (
+export const createBusinessAccountHandler = async (
   req: Request,
   res: Response,
 ) => {
-  const createdAt = Timestamp.now().seconds;
+  const _createdAt = Timestamp.now().seconds;
 
-  const setupBusinessRequest: SetupBusinessRequest = {
-    userId: req.user.user_id,
-    address: req.body.address,
+  const createBusinessRequest: CreateBusinessRequest = {
+    displayName: req.body.displayName,
     firstName: req.body.firstName,
     lastName: req.body.lastName,
     description: req.body.description,
-    displayName: req.body.displayName,
+    address: req.body.address,
     logo: req.body.logo,
     businessLegal: req.body.businessLegal,
-    createdAt,
-    updatedAt: createdAt,
   };
-  const { error, data } = await setupBusinessAccount(setupBusinessRequest);
+
+  const createBusinessParams: CreateBusinessParams = {
+    ...createBusinessRequest,
+    _createdAt,
+    _updatedAt: _createdAt,
+    _userId: req.user.user_id,
+  };
+
+  const { error, data } = await createBusinessAccount(createBusinessParams);
   responseHandler(res, data, 204, error, errorHandler);
 };
 
 export const getBusinessHandler = async (req: Request, res: Response) => {
-  const getBusinessRequest: GetBusinessRequest = {
-    userId: req.user.user_id,
+  const getBusinessParams: GetBusinessParams = {
+    _userId: req.user.user_id,
   };
-  const { error, data } = await getBusiness(getBusinessRequest);
+  const { error, data } = await getBusiness(getBusinessParams);
   responseHandler(res, data, 200, error, errorHandler);
 };
 
 export const updateBusinessHandler = async (req: Request, res: Response) => {
   const updateBusinessRequest: UpdateBusinessRequest = {
-    userId: req.user.user_id,
-    isActive: req.user?.acv,
     address: req.body.address,
     firstName: req.body.firstName,
     lastName: req.body.lastName,
@@ -102,9 +117,15 @@ export const updateBusinessHandler = async (req: Request, res: Response) => {
     displayName: req.body.displayName,
     logo: req.body.logo,
     businessLegal: req.body.businessLegal,
-    updatedAt: Timestamp.now().seconds,
   };
-  const { error, data } = await updateBusiness(updateBusinessRequest);
+
+  const updateBusinessParams: UpdateBusinessParams = {
+    ...updateBusinessRequest,
+    _canUpdateLegalFiles: req.user?.acv,
+    _userId: req.user.user_id,
+  };
+
+  const { error, data } = await updateBusiness(updateBusinessParams);
   responseHandler(res, data, 200, error, errorHandler);
 };
 
@@ -112,13 +133,14 @@ export const adminValidateAccountHandler = async (
   req: Request,
   res: Response,
 ) => {
-  const adminValidateSetupAccountRequest: AdminValidateSetupAccountRequest = {
+  const adminValidateAccountRequest: AdminValidateAccountRequest = {
     userId: req.body.uid,
     status: req.body.status,
     content: req.body.content,
   };
+
   const { error, data } = await adminValidateAccount(
-    adminValidateSetupAccountRequest,
+    adminValidateAccountRequest,
   );
   responseHandler(res, data, 200, error, errorHandler);
 };

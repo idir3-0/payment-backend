@@ -1,14 +1,14 @@
 import { Request, Response } from 'express';
 import { listNotifications, readNotifications } from './controllers';
 import { responseHandler } from 'src/utils/response';
-import { ListNotificationRequest } from './models';
+import { ListNotificationParams } from 'payment-types';
 
 export const listNotificationsHandler = async (req: Request, res: Response) => {
-  const listNotificationRequest: ListNotificationRequest = {
-    userId: req.user.user_id,
+  const listNotificationParams: ListNotificationParams = {
     limit: 10,
+    _userId: req.user.user_id,
   };
-  const { data, error } = await listNotifications(listNotificationRequest);
+  const { data, error } = await listNotifications(listNotificationParams);
   return responseHandler(res, data, 200, error, () => {});
 };
 

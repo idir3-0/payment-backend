@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Roles } from 'src/services/accounts/models';
+import { Roles } from 'payment-types';
 
 export const isBusinessMiddelware = async (
   req: Request,
