@@ -8,10 +8,12 @@ import { initInvoiceRoutes } from './services/invoices/routes';
 import { initFirebase } from './adapters/firebase/firebase';
 import { initNotificationRoutes } from './services/notifications/routes';
 import morganMiddleware from './middleware/logger';
+import helmet from 'helmet';
 
 const app = express();
 app.use(express.json()); // for parsing application/json
 app.use(morganMiddleware);
+app.use(helmet());
 
 const port = config.server.appPort;
 
