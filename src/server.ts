@@ -7,9 +7,11 @@ import { initTransactionRoutes } from './services/transactions/routes';
 import { initInvoiceRoutes } from './services/invoices/routes';
 import { initFirebase } from './adapters/firebase/firebase';
 import { initNotificationRoutes } from './services/notifications/routes';
+import morganMiddleware from './middleware/logger';
 
 const app = express();
 app.use(express.json()); // for parsing application/json
+app.use(morganMiddleware);
 
 const port = config.server.appPort;
 

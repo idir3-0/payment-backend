@@ -47,7 +47,6 @@ export const createInvoice = async (
       data: { id: invoice.id },
     };
   } catch (error) {
-    console.log(error);
     return { error };
   }
 };
@@ -56,7 +55,6 @@ export const listInvoices = async (
   listInvoicesParams: ListInvoicesParams,
 ): Promise<{ data?: Object; error?: Error }> => {
   try {
-    console.log(listInvoicesParams);
     const { _userId, key } = listInvoicesParams;
     const col = collection(firebaseDatabase, INVOICE_COLLECTION_NAME);
 
@@ -69,7 +67,6 @@ export const listInvoices = async (
     const invoicesSnap = await getDocs(q);
     const invoices = [];
     invoicesSnap.forEach((inv) => {
-      console.log(11111111);
       const invoice = {
         id: inv.id,
         ...inv.data(),
@@ -100,7 +97,6 @@ export const updateInvoice = async (
       _createdBy,
       _updatedAt,
     } = updateInvoiceParams;
-    console.log(updateInvoiceParams);
     const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, _invoiceId);
     const invoiceSnapshot = await getDoc(d);
     const invoice = invoiceSnapshot.data() as Invoice;
@@ -143,7 +139,6 @@ export const updateInvoice = async (
     );
     return { data: {} };
   } catch (error) {
-    console.log(error);
     return { error };
   }
 };
@@ -154,7 +149,6 @@ export const deleteInvoice = async (
   try {
     const { _createdBy, invoiceId } = deleteInvoiceParams;
     const d = doc(firebaseDatabase, INVOICE_COLLECTION_NAME, invoiceId);
-    console.log(deleteInvoiceParams);
 
     const invoiceSnapshot = await getDoc(d);
     const invoice = invoiceSnapshot.data() as Invoice;
@@ -163,8 +157,6 @@ export const deleteInvoice = async (
       throw ERROR_INVOICE_NOT_EXIST;
     }
 
-    console.log(invoice._createdBy, _createdBy);
-    console.log(invoice.status, InvoiceStatusMap.draft);
     if (
       invoice._createdBy != _createdBy ||
       invoice.status != InvoiceStatusMap.draft
@@ -175,7 +167,6 @@ export const deleteInvoice = async (
     await deleteDoc(d);
     return { data: { id: invoiceId } };
   } catch (error) {
-    console.log(error);
     return { error };
   }
 };

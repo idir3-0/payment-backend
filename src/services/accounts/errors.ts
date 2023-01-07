@@ -10,7 +10,6 @@ export const errorToStatus = (err: string) => {
     case ERROR_ACCOUNT_NOT_EXIST:
       return { status: 404, error: err };
     default:
-      console.log(err);
       return { status: 500, error: 'Internal error server' };
   }
 };
